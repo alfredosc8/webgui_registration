@@ -2,9 +2,9 @@ package WebGUI::Registration;
 
 use strict;
 
-use List::Util;
+use List::Util qw{ first };
 use WebGUI::Pluggable;
-use JSON;
+use JSON qw{ encode_json decode_json };
 use Data::Dumper;
 
 #-------------------------------------------------------------------
@@ -13,7 +13,19 @@ sub completeStep {
     my $stepId  = shift;
 
     #### TODO: Actually set the step to completed
-    
+    my ($step) = grep { $_->{ stepId } eq $stepId } @{ $self->{ _steps } };
+    $step->{ complete } = 1;
+
+    # Update completed steps tracker
+    $self->session->scratch->set( 'registration_completedSteps',
+        encode_json( { 
+            map     { $_->{ stepId   } => 1     } 
+            grep    { $_->{ complete }          } 
+                   @{ $self->{ _steps } }
+        } )
+    );
+   
+    $self->session->errorHandler->warn( 'CS: '. $self->session->scratch->get( 'registration_completedSteps' ) );
     # Since we've just completed this step getCurrentStep will return the next.
     return $self->getCurrentStep;
 }
@@ -34,10 +46,11 @@ sub getCurrentStep {
     my $plugin = eval { 
         WebGUI::Pluggable::instanciate( $currentStep->{namespace}, 'new', [
             $self->session,
-            $currentStep->{ id },
+            $currentStep->{ stepId },
         ]);
     };
 
+    $self->session->errorHandler->warn( $@.$! );
     #### TODO: Catch exceptions;
 
     return $plugin;
@@ -50,20 +63,29 @@ sub new {
 
     # TODO: Dit moet natuurlijk gewoon uit de db komen.
     my $registrationSteps = [ 
-        { id => 'ab001', namespace => 'WebGUI::Registration::Step::ProfileData'  },
-        { id => 'ab002', namespace => 'WebGUI::Registration::Step::UserHomepage' },
+        { stepId => 'ab001', namespace => 'WebGUI::Registration::Step::StepOne'  },
+        { stepId => 'ab002', namespace => 'WebGUI::Registration::Step::StepTwo'  },
     ];
 
     # Get the completed steps for the current user
-    my $completedStepsJSON  = $session->scratch->get('registration_completedSteps') || '{ "ab002" : "1" }';
+    my $completedStepsJSON  = $session->scratch->get('registration_completedSteps') || '{ }';  #'{ "ab002" : "1" }';
     my $completedSteps      = decode_json( $completedStepsJSON );
 
+$session->errorHandler->warn( 'new: '. $session->scratch->get( 'registration_completedSteps' ) );
+
     # Set complete status of steps
-    $_->{ complete } = exists $completedSteps->{ $_->{id} } ? 1 : 0 for @{ $registrationSteps };
+    $_->{ complete } = exists $completedSteps->{ $_->{stepId} } ? 1 : 0 for @{ $registrationSteps };
 
     $session->errorHandler->warn( Dumper( $registrationSteps ) );
         
-    bless { _steps => $registrationSteps }, $class;
+    bless { _steps => $registrationSteps, _session => $session }, $class;
+}
+
+#-------------------------------------------------------------------
+sub session {
+    my $self    = shift;
+
+    return $self->{_session};
 }
 
 #-------------------------------------------------------------------
@@ -82,33 +104,39 @@ sub www_confirmregistrationData {
 }
 
 #-------------------------------------------------------------------
-sub www_register {
+sub www_viewStep {
     my $self = shift;
 
     my $output;
     my $currentStep = $self->getCurrentStep;
 
-    $currentStep->processFormPost;
-
-    if ( $currentStep->complete ) {
-        my $nextStep = $self->completeStep( $currentStep->getId );
-
-        if ( defined $nextStep ) {
-            $output = $nextStep->getRegistrationForm;
-        }
-        else {
-            # Completed last step succesfully.
-            
-            #### TODO: Dubbelchecken of alle stappen zijn gecomplete.
-            $output = $self->www_confirmRegistrationData;
-        }
+    if ( defined $currentStep ) {
+        $output = $currentStep->view . $currentStep->getStepForm->print;
     }
     else {
-        $output = $currentStep->getRegistrationForm;
+        # Completed last step succesfully.
+            
+        #### TODO: Dubbelchecken of alle stappen zijn gecomplete.
+        $output = $self->www_confirmRegistrationData;
     }
 
     return $output;
 }
 
-1;
+#-------------------------------------------------------------------
+sub www_viewStepSave {
+    my $self    = shift;
 
+    my $currentStep = $self->getCurrentStep;
+
+    $currentStep->processStepFormData;
+
+    if ( $currentStep->isComplete ) {
+        my $nextStep = $self->completeStep( $currentStep->stepId );
+    }
+
+
+    return $self->www_viewStep;
+}
+
+1;
