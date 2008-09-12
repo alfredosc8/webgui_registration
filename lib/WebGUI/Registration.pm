@@ -89,8 +89,76 @@ sub session {
 }
 
 #-------------------------------------------------------------------
-sub www_edit {
+sub www_addStep {
+    my $self    = shift;
+    my $session = $self->session;
 
+    #### TODO: Auth
+
+    my $namespace = $session->form->process( 'step' );
+    return "Illegal namespace" unless $namespace =~ /^[\w\d:]+$/;
+
+    my $step = eval {
+        WebGUI::Pluggable::instanciate( $namespace, 'create', [
+            $session,
+            #### TODO: $self->getId
+        ] );
+    };
+
+    #### TODO: catch exception
+
+    return $step->getEditForm;
+}
+
+#-------------------------------------------------------------------
+sub www_do {
+    my $self    = shift;
+    my $session = shift;
+    
+    #### TODO: Auth
+
+    my $method  = 'www_' . $session->form->process('do');
+    my $stepId  = $session->form->process('stepId');
+
+    return "Illegal method [$method]" unless $method =~ /^[\w_]+$/;
+
+    my $step = eval {
+        WebGUI::Pluggable::instanciate( $namespace, 'newByDynamicClass', [
+            $session,
+            $stepId,
+        ]);
+    }
+
+    return "Unable to do method [$method]" unless $step->can( $method );
+
+    return $step->$method();
+}
+
+#-------------------------------------------------------------------
+sub www_edit {
+    my $self    = shift;
+
+    #### TODO: Auth
+
+    my $availableSteps = {
+        ''                                      => 'No Step',
+        'WebGUI::Registration::Step::StepOne'   => 'Step One',
+        'WebGUI::Registration::Step::StepTwo'   => 'Step Two',
+    }
+
+    my $f = WebGUI::HTMLForm->new( $self->session );
+    $f->hidden(
+        -name       => 'registration',
+        -value      => 'addStep',
+    );
+    $f->selectBox(
+        -name       => "step",
+        -value      => '',
+        -label      => "Add step",
+        -options    => $availableSteps,
+    );
+    
+    return $f->print;
 }
 
 #-------------------------------------------------------------------
@@ -135,8 +203,8 @@ sub www_viewStepSave {
         my $nextStep = $self->completeStep( $currentStep->stepId );
     }
 
-
     return $self->www_viewStep;
 }
 
 1;
+
