@@ -5,6 +5,8 @@ use Class::InsideOut qw{ :std };
 use WebGUI::HTMLForm;
 use JSON;
 
+use Data::Dumper;
+
 readonly session        => my %session;
 readonly stepId         => my %stepId;
 readonly options        => my %options;
@@ -124,7 +126,15 @@ sub getStepForm {
     my $f = WebGUI::HTMLForm->new( $self->session );
     $f->hidden(
         -name   => 'registration',
+        -value  => 'register',
+    );
+    $f->hidden(
+        -name   => 'func',
         -value  => 'viewStepSave',
+    );
+    $f->hidden(
+        -name   => 'registrationId',
+        -value  => $self->registrationId,
     );
 
     return $f;
@@ -191,6 +201,9 @@ sub new {
     my $properties  = $session->db->quickHashRef( 'select * from RegistrationStep where stepId=?', [
         $stepId,
     ]);
+
+    $session->errorHandler->warn( "[[[[$stepId]]]]" );
+    $session->errorHandler->warn( Dumper( $properties ) );
 
     my $self = $class->_buildObj( $session, $stepId, $properties->{ registrationId }, decode_json( $properties->{ options } ) );
 

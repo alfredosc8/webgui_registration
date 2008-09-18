@@ -26,10 +26,18 @@ sub _buildObj {
 
     # --- Fetch registration steps from db ----------------------
     # TODO: Dit moet natuurlijk gewoon uit de db komen.
-    my $registrationSteps = [ 
-        { stepId => 'ab001', namespace => 'WebGUI::Registration::Step::StepOne'  },
-        { stepId => 'ab002', namespace => 'WebGUI::Registration::Step::StepTwo'  },
-    ];
+    
+    my $registrationSteps = $session->db->buildArrayRefOfHashRefs(
+        'select * from RegistrationStep where registrationId=? order by stepOrder',
+        [
+            $registrationId,
+        ]
+    );
+
+#    my $registrationSteps = [ 
+#        { stepId => 'ab001', namespace => 'WebGUI::Registration::Step::StepOne'  },
+#        { stepId => 'ab002', namespace => 'WebGUI::Registration::Step::StepTwo'  },
+#    ];
 
     # Get the completed steps for the current user session
     my $completedStepsJSON  = $session->scratch->get('registration_completedSteps') || '{ }';  #'{ "ab002" : "1" }';
@@ -110,6 +118,7 @@ sub getCurrentStep {
     return undef unless defined $currentStep;
 
     # Load registration step plugin
+    #### TODO: getStep gebruiken
     my $plugin = eval { 
         WebGUI::Pluggable::instanciate( $currentStep->{namespace}, 'new', [
             $self->session,
@@ -195,10 +204,30 @@ sub processPropertiesFromFormPost {
     my $title   = $form->process( 'title'  );
     my $url     = $form->process( 'url'    );
 
+    #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
+
     $self->update({
         title   => $title,
         url     => $url,
     });
+
+    # Fetch the urlTriggers setting
+    my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
+    my $urlTriggers     = {};
+
+    # Check whether or not the setting already exists
+    if ( $urlTriggersJSON ) {
+        # If so, decode the JSON string
+        $urlTriggers    = decode_json( $urlTriggersJSON );
+    }
+    else {
+        # If not, create the setting
+        $self->session->setting->add( 'registrationUrlTriggers', '{}' );
+    }
+
+    # Add the url to the setting
+    $urlTriggers->{ $url }  = $self->registrationId;
+    $self->session->setting->set( 'registrationUrlTriggers', encode_json( $urlTriggers ) );
 }
 
 #-------------------------------------------------------------------

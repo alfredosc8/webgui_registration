@@ -3,21 +3,27 @@ package WebGUI::Content::Registration;
 use strict;
 use WebGUI::Registration;
 use WebGUI::Registration::Admin;
+use WebGUI::Utility;
+use JSON;
 
 sub handler {
     my $session = shift;
+    my $registrationId;
     my $output;
 
     my $system = $session->form->process( 'registration' );
 
-    if ($session->url->getRequestedUrl eq 'register' && !$system ) {
-        $system = 'register';
+    my $triggerUrls = decode_json( $session->setting->get( 'registrationUrlTriggers' ) || '{}' );
+
+    if ( isIn( $session->url->getRequestedUrl, keys %{ $triggerUrls } ) && !$system ) {
+        $system         = 'register';
+        $registrationId = $triggerUrls->{ $session->url->getRequestedUrl };
     }
 
     $system = 'www_'.$system;
 
     if ( $system =~ /^[\w_]+$/ && ( my $sub = __PACKAGE__->can( $system ) ) ) {
-        $output = $sub->( $session );
+        $output = $sub->( $session, $registrationId );
     }
     else {
         $session->errorHandler->warn("Invalid system [$system]");
@@ -44,9 +50,9 @@ sub www_admin {
 
 sub www_register {
     my $session = shift;
+    my $regId   = shift || $session->form->process('registrationId');
     my $output;
 
-    my $regId = $session->form->process('registrationId');
     my $reg = WebGUI::Registration->new( $session, $regId );
 
     my $method = 'www_' . ( $session->form->process( 'func' ) || 'viewStep' );
