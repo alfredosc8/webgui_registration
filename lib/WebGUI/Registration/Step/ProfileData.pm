@@ -104,6 +104,45 @@ sub getEditForm {
 }
 
 #-------------------------------------------------------------------
+sub getSummaryTemplateVars {
+    my $self            = shift;
+    my $session         = $self->session;
+    my @categoryLoop    = ();
+
+    # Get entered profile data
+    my $profileSteps = $self->get('profileSteps');
+    my @categories = map    { $profileSteps->{$_} } 
+                     sort 
+                     grep   /^profileStep\d\d?$/, 
+                            keys %$profileSteps;
+
+    # And put into tmpl_vars
+    foreach my $categoryId ( @categories ) {
+        my $category = WebGUI::ProfileCategory->new($session, $categoryId);
+
+        next unless $category->getLabel;
+      
+        my @fields;
+        foreach my $field (@{ $category->getFields }) {
+            push(@fields, {
+                field_label       => $field->getLabel,
+                field_value       => $field->formField(undef, 2),
+            });
+        }
+
+        push( @categoryLoop, {
+            field_loop          => \@fields,
+            category_label      => $category->getLabel,
+            category_id         => $category->getId,
+#### TODO: URL goed maken.
+            category_edit_url   => $session->url->page('func=getProfileCategoryData;categoryId='.$category->getId),
+        });
+    }
+
+    return @categoryLoop;
+}
+
+#-------------------------------------------------------------------
 sub isComplete {
     my $self = shift;
 $self->session->errorHandler->warn( 'in iscomplete');
@@ -170,26 +209,20 @@ sub view {
 
 #-------------------------------------------------------------------
 sub www_getProfileCategoryData {
-    my $self             = shift;
-    my $error            = shift || [];
-my $e = $self->session->errorHandler;   
-#### CONF
-    my $profileOverrides = $self->get('profileOverrides');
-#### CONF
-    my $profileSteps     = $self->get('profileSteps');
-     my $categoryId       = $self->session->scratch->get('currentCategoryId') || $self->session->form->process('categoryId') || $profileSteps->{ profileStep1 };
-#    my $categoryId       =    shift || $self->session->form->process('categoryId') || $profileSteps->{ profileStep1 };
+    my $self    = shift;
+    my $error   = shift || [];
 
-$e->warn("}}}categoryId:$categoryId");
-##    # Check priviledges
-##    return $self->www_setupSite unless $self->canSetupSite;
+
+    my $profileOverrides    = $self->get('profileOverrides');
+    my $profileSteps        = $self->get('profileSteps');
+    my $categoryId          = $self->session->scratch->get('currentCategoryId') 
+                              || $self->session->form->process('categoryId') 
+                              || $profileSteps->{ profileStep1 };
 
     # Figure out current sub step
     my $currentStep = { reverse %$profileSteps }->{ $categoryId };
     $currentStep    =~ s{^profileStep(\d+)$}{$1} || 1;
-$e->warn("}}}cs:$currentStep");
 
-#### FORM
     # Setup HTMLForm 
     my $f = WebGUI::HTMLForm->new($self->session);
     $f->hidden(
@@ -236,7 +269,6 @@ $e->warn("}}}cs:$currentStep");
     $var->{ comment         } = $profileSteps->{ "profileStepComment".$currentStep };
     $var->{ form            } = $f->print;
     $var->{ field_loop      } = \@fieldLoop;
-#### FORM
     $var->{ form_header     } = 
         WebGUI::Form::formHeader($self->session)
         . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
@@ -246,7 +278,6 @@ $e->warn("}}}cs:$currentStep");
     $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
     $var->{ error_loop      } = [ map { {error_message => $_} } @$error ];
 
-#### CONF
     my $template = WebGUI::Asset::Template->new($self->session, $self->getRegistration->stepTemplateId);
     return $template->process($var);
 }
@@ -255,15 +286,12 @@ $e->warn("}}}cs:$currentStep");
 sub www_getProfileCategoryDataSave {
     my $self    = shift;
     my $session = $self->session;
-my $e = $session->errorHandler;
 
     # Check priviledges
 ##    return $self->www_setupSite unless $self->canSetupSite;
     
     # Fetch the profile step and override data
-#### CONF
     my $profileSteps     = $self->get('profileSteps');
-#### CONF
     my $profileOverrides = $self->get('profileOverrides');
 
     # Figure out the current step. We don't use the scratch var because that doesn't protect against reloads.
@@ -271,7 +299,6 @@ my $e = $session->errorHandler;
     my $categoryId  = $self->session->form->process('categoryId');
     my $currentStep = { reverse %$profileSteps }->{$categoryId};           # switch keys/values to do reverse lookup.
     $currentStep    =~ s{^profileStep(\d+)$}{$1};
-$e->warn("cs:$currentStep");
 
     my $completedProfileCategories = $self->getConfigurationData->{ completedProfileCategories } || {};
     delete $completedProfileCategories->{ $categoryId };
@@ -313,7 +340,6 @@ $e->warn("cs:$currentStep");
     # Data correct so proceed with next step
     my $nextStep = $currentStep + 1;
 
-$e->warn("ns: $nextStep");
 #### Dit moet worden verplaatst naar de logica in Reg.
     # Are we editing a complete profile? If so return to the confirmation page
 ##    return $self->www_confirmProfileData if $self->session->scratch->get('profileComplete');

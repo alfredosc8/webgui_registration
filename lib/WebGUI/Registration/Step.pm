@@ -225,6 +225,11 @@ sub getStepsForRegistration {
 }
 
 #-------------------------------------------------------------------
+sub getSummaryTemplateVars {
+    return undef;
+}
+
+#-------------------------------------------------------------------
 sub isComplete {
     return 'abcde';
 }
@@ -270,12 +275,11 @@ sub processStepFormData {
 
 #-------------------------------------------------------------------
 sub processStyle {
-    my $self = shift;
+    my $self    = shift;
     my $content = shift;
 
-    my $styleTemplateId = $self->getRegistration->styleTemplateId;
-
-    return $self->session->style->process( $content, $styleTemplateId );
+#### TODO: deze method verwijderen. en WG::Reg::processStyle gebruiken.
+    return $self->getRegistration->processStyle( $content );
 }
 
 #-------------------------------------------------------------------
@@ -316,7 +320,6 @@ sub update {
     my $newOptions  = { %{ $self->options }, %{ $properties } };
     
     $options{ id $self } = $newOptions;
-$session->errorHandler->warn( Dumper($newOptions) );
 
     $session->db->write('update RegistrationStep set options=? where stepId=?', [
         encode_json( $newOptions ),

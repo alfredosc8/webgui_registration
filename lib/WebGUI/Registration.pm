@@ -9,13 +9,14 @@ use JSON qw{ encode_json decode_json };
 use Data::Dumper;
 use WebGUI::Utility;
 
-readonly session            => my %session;
-readonly registrationId     => my %registrationId;
-readonly url                => my %url;
-readonly registrationSteps  => my %registrationSteps;
-readonly styleTemplateId    => my %styleTemplateId;
-readonly stepTemplateId     => my %stepTemplateId;
-readonly title              => my %title;
+readonly session                => my %session;
+readonly registrationId         => my %registrationId;
+readonly url                    => my %url;
+readonly registrationSteps      => my %registrationSteps;
+readonly styleTemplateId        => my %styleTemplateId;
+readonly stepTemplateId         => my %stepTemplateId;
+readonly confirmationTemplateId => my %confirmationTemplateId;
+readonly title                  => my %title;
 
 #-------------------------------------------------------------------
 sub _buildObj {
@@ -63,6 +64,7 @@ sub _buildObj {
     $url                { $id } = $options->{ url };
     $styleTemplateId    { $id } = $options->{ styleTemplateId };
     $stepTemplateId     { $id } = $options->{ stepTemplateId };
+    $confirmationTemplateId { $id } = $options->{ confirmationTemplateId };
     $title              { $id } = $options->{ title };
     $registrationSteps  { $id } = $registrationSteps;
 
@@ -174,6 +176,12 @@ sub getEditForm {
         -label      => 'Step Template',
         -namespace  => 'Registration/Step',
     );
+    $f->template(
+        -name       => 'confirmationTemplateId',
+        -value      => $self->confirmationTemplateId,
+        -label      => 'Confirmation Template',
+        -namespace  => 'Registration/Confirm',
+    );
     $f->submit;
 
     return $f;
@@ -200,18 +208,20 @@ sub processPropertiesFromFormPost {
     my $self    = shift;
     my $form    = $self->session->form;
 
-    my $title           = $form->process( 'title'           );
-    my $url             = $form->process( 'url'             );
-    my $stepTemplateId  = $form->process( 'stepTemplateId'  );
-    my $styleTemplateId = $form->process( 'styleTemplateId' );
+    my $title                   = $form->process( 'title'           );
+    my $url                     = $form->process( 'url'             );
+    my $stepTemplateId          = $form->process( 'stepTemplateId'  );
+    my $styleTemplateId         = $form->process( 'styleTemplateId' );
+    my $confirmationTemplateId  = $form->process( 'confirmationTemplateId'  );
 
     #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
 
     $self->update({
-        title           => $title,
-        url             => $url,
-        styleTemplateId => $styleTemplateId,
-        stepTemplateId  => $stepTemplateId,
+        title                   => $title,
+        url                     => $url,
+        styleTemplateId         => $styleTemplateId,
+        stepTemplateId          => $stepTemplateId,
+        confirmationTemplateId  => $confirmationTemplateId,
     });
 
     # Fetch the urlTriggers setting
@@ -234,11 +244,21 @@ sub processPropertiesFromFormPost {
 }
 
 #-------------------------------------------------------------------
+sub processStyle {
+    my $self    = shift;
+    my $content = shift;
+
+    my $styleTemplateId = $self->styleTemplateId;
+
+    return $self->session->style->process( $content, $styleTemplateId );
+}
+
+#-------------------------------------------------------------------
 sub update {
     my $self    = shift;
     my $options = shift;
 
-    my @available = qw{ title url stepTemplateId styleTemplateId };
+    my @available = qw{ title url stepTemplateId styleTemplateId confirmationTemplateId };
     foreach (keys %$options) {
     $self->session->errorHandler->warn("[[$_]][[".$options->{$_}."]]");
         next unless isIn( $_, @available );
@@ -279,6 +299,7 @@ sub www_addStep {
         ] );
     };
 
+    $session->errorHandler->warn("}{}{}{$@ $!}{}{}{") if $@;
     #### TODO: catch exception
 
     return $step->www_edit;
@@ -314,6 +335,7 @@ sub www_listSteps {
         'WebGUI::Registration::Step::StepOne'       => 'StepOne',
         'WebGUI::Registration::Step::StepTwo'       => 'StepTwo',
         'WebGUI::Registration::Step::ProfileData'   => 'ProfileData',
+        'WebGUI::Registration::Step::Homepage'      => 'Homepage',
     };
     my $addForm = 
           WebGUI::Form::formHeader( $session )
@@ -408,8 +430,23 @@ sub www_do {
 
 
 #-------------------------------------------------------------------
-sub www_confirmregistrationData {
+sub www_confirmRegistrationData {
+    my $self    = shift;
+    my $session = $self->session;
+    
+    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $self->registrationId );
+    my @categoryLoop    = ();
 
+    foreach my $step ( @{ $steps } ) {
+        push @categoryLoop, $step->getSummaryTemplateVars;
+    }
+    
+    my $var = {
+        category_loop   => \@categoryLoop,
+    };
+
+    my $template = WebGUI::Asset::Template->new( $session, $self->confirmationTemplateId );
+    return $self->processStyle( $template->process( $var ) );
 }
 
 #-------------------------------------------------------------------
@@ -437,6 +474,9 @@ sub www_viewStepSave {
     my $self    = shift;
 
     my $currentStep = $self->getCurrentStep;
+
+    # No more steps?
+    return $self->www_viewStep unless $currentStep;
 
     $currentStep->processStepFormData;
 
