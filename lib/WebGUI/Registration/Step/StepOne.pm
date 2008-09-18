@@ -4,6 +4,29 @@ use strict;
 
 use base qw{ WebGUI::Registration::Step };
 
+sub definition {
+    my $class       = shift;
+    my $session     = shift;
+    my $definition  = shift || [ ];
+
+    tie my %fields, "Tie::IxHash", (
+        defaultSetting  => {
+            fieldType       => 'yesNo',
+            label           => 'Default setting',
+            defaultValue    => 0,
+        },
+    );
+
+    push @{ $definition }, {
+        name        => 'StepOne',
+        properties  => \%fields,
+        namespace   => 'WebGUI::Registration::Step::StepOne',
+    };
+
+    return $class->SUPER::definition( $session, $definition );
+}
+
+
 #-------------------------------------------------------------------
 sub getStepForm {
     my $self    = shift;
