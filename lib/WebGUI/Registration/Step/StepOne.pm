@@ -60,7 +60,9 @@ sub isComplete {
 
 #-------------------------------------------------------------------
 sub view {
-    return 'Step 1';
+    my $self = shift;
+
+    return $self->getStepForm->print;
 }
 
 1;

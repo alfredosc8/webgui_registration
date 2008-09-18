@@ -41,13 +41,22 @@ sub create {
     my $stepId          = $session->id->generate;
     my $namespace       = $class->definition->[0]->{ namespace };
 
+    my $maxStepOrder    = $session->db->quickScalar(
+        'select max(stepOrder) from RegistrationStep where registrationId=?',
+        [
+            $registration->registrationId,
+        ]
+    );
+    
+    $maxStepOrder ||= 1;
+
     $session->db->write(
         'insert into RegistrationStep set stepId=?, registrationId=?, options=?, stepOrder=?, namespace=?', 
         [
             $stepId,
             $registration->registrationId,
             '{ }',
-            0,
+            $maxStepOrder + 1,
             $namespace,
         ]
     );
@@ -92,6 +101,23 @@ sub get {
 }
 
 #-------------------------------------------------------------------
+sub getConfigurationData {
+    my $self    = shift;
+    my $userId  = shift || $self->session->user->userId;
+
+    my $configurationData = $self->session->db->quickScalar(
+        'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
+        [
+            $userId,
+            $self->stepId,
+        ]
+    );
+ 
+    return $configurationData ? decode_json($configurationData) : {};
+}
+
+
+#-------------------------------------------------------------------
 sub getEditForm {
     my $self    = shift;
     my $session = $self->session;
@@ -114,9 +140,20 @@ sub getEditForm {
         -value  => $self->registrationId,
     );
     $f->dynamicForm( $self->definition, 'properties', $self );
-    $f->submit;
 
     return $f;
+}
+
+#-------------------------------------------------------------------
+sub getRegistration {
+    my $self = shift;
+    
+    my $registration = WebGUI::Pluggable::instanciate( 'WebGUI::Registration', 'new', [
+        $self->session,
+        $self->registrationId,
+    ]);
+    
+    return $registration;
 }
 
 #-------------------------------------------------------------------
@@ -189,7 +226,7 @@ sub getStepsForRegistration {
 
 #-------------------------------------------------------------------
 sub isComplete {
-    return 0;
+    return 'abcde';
 }
 
 #-------------------------------------------------------------------
@@ -201,9 +238,6 @@ sub new {
     my $properties  = $session->db->quickHashRef( 'select * from RegistrationStep where stepId=?', [
         $stepId,
     ]);
-
-    $session->errorHandler->warn( "[[[[$stepId]]]]" );
-    $session->errorHandler->warn( Dumper( $properties ) );
 
     my $self = $class->_buildObj( $session, $stepId, $properties->{ registrationId }, decode_json( $properties->{ options } ) );
 
@@ -235,20 +269,76 @@ sub processStepFormData {
 }
 
 #-------------------------------------------------------------------
+sub processStyle {
+    my $self = shift;
+    my $content = shift;
+
+    my $styleTemplateId = $self->getRegistration->styleTemplateId;
+
+    return $self->session->style->process( $content, $styleTemplateId );
+}
+
+#-------------------------------------------------------------------
 sub view {
 
 }
+
+#-------------------------------------------------------------------
+sub setConfigurationData {
+    my $self    = shift;
+    my $key     = shift;
+    my $value   = shift;
+    my $userId  = shift || $self->session->user->userId;
+
+    my $configurationData = $self->getConfigurationData;
+    $configurationData->{ $key } = $value;
+
+    my $json = encode_json($configurationData);
+   
+    $self->session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
+        $self->stepId,
+        $userId,
+    ]);
+    $self->session->db->write('insert into RegistrationStep_accountData set configurationData=?, stepId=?, userId=?', [
+        $json,
+        $self->stepId,
+        $userId,
+    ]);
+}
+
 
 #-------------------------------------------------------------------
 sub update {
     my $self        = shift;
     my $properties  = shift;
     my $session     = $self->session;
+    
+    my $newOptions  = { %{ $self->options }, %{ $properties } };
+    
+    $options{ id $self } = $newOptions;
+$session->errorHandler->warn( Dumper($newOptions) );
 
     $session->db->write('update RegistrationStep set options=? where stepId=?', [
-        encode_json( $properties ),
+        encode_json( $newOptions ),
         $self->stepId,
     ]);
+}
+
+#-------------------------------------------------------------------
+sub www_edit {
+    my $self = shift;
+
+    my $f = $self->getEditForm;
+    $f->submit;
+
+    return $f->print;
+}
+
+#-------------------------------------------------------------------
+sub www_view {
+    my $self = shift;
+
+    return $self->processStyle( $self->view );
 }
 
 1;

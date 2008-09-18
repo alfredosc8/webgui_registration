@@ -13,7 +13,8 @@ readonly session            => my %session;
 readonly registrationId     => my %registrationId;
 readonly url                => my %url;
 readonly registrationSteps  => my %registrationSteps;
-readonly templateId         => my %templateId;
+readonly styleTemplateId    => my %styleTemplateId;
+readonly stepTemplateId     => my %stepTemplateId;
 readonly title              => my %title;
 
 #-------------------------------------------------------------------
@@ -60,7 +61,8 @@ sub _buildObj {
     $session            { $id } = $session;
     $registrationId     { $id } = $registrationId;
     $url                { $id } = $options->{ url };
-    $templateId         { $id } = $options->{ templateId };
+    $styleTemplateId    { $id } = $options->{ styleTemplateId };
+    $stepTemplateId     { $id } = $options->{ stepTemplateId };
     $title              { $id } = $options->{ title };
     $registrationSteps  { $id } = $registrationSteps;
 
@@ -160,22 +162,19 @@ sub getEditForm {
         -value      => $self->url,
         -label      => 'URL',
     );
+    $f->template(
+        -name       => 'styleTemplateId',
+        -value      => $self->styleTemplateId,
+        -label      => 'Style',
+        -namespace  => 'style',
+    );
+    $f->template(
+        -name       => 'stepTemplateId',
+        -value      => $self->stepTemplateId,
+        -label      => 'Step Template',
+        -namespace  => 'Registration/Step',
+    );
     $f->submit;
-
-#    my $addStepForm = WebGUI::HTMLForm->new( $session );
-#    $addStepForm->hidden(
-#        -name       => 'registration',
-#        -value      => 'addStep',
-#    );
-#    $addStepForm->selectBox(
-#        -name       => "step",
-#        -value      => '',
-#        -label      => "Add step",
-#        -options    => $availableSteps,
-#    );
-#    $addStepForm->submit( -value => 'Add step' );
-# 
-
 
     return $f;
 }
@@ -201,14 +200,18 @@ sub processPropertiesFromFormPost {
     my $self    = shift;
     my $form    = $self->session->form;
 
-    my $title   = $form->process( 'title'  );
-    my $url     = $form->process( 'url'    );
+    my $title           = $form->process( 'title'           );
+    my $url             = $form->process( 'url'             );
+    my $stepTemplateId  = $form->process( 'stepTemplateId'  );
+    my $styleTemplateId = $form->process( 'styleTemplateId' );
 
     #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
 
     $self->update({
-        title   => $title,
-        url     => $url,
+        title           => $title,
+        url             => $url,
+        styleTemplateId => $styleTemplateId,
+        stepTemplateId  => $stepTemplateId,
     });
 
     # Fetch the urlTriggers setting
@@ -235,11 +238,11 @@ sub update {
     my $self    = shift;
     my $options = shift;
 
-    my @available = qw{ title url };
+    my @available = qw{ title url stepTemplateId styleTemplateId };
     foreach (keys %$options) {
     $self->session->errorHandler->warn("[[$_]][[".$options->{$_}."]]");
         next unless isIn( $_, @available );
-$self->session->errorHandler->warn("hopsa");
+
         #### TODO: Dit performed natuurlijk niet, maar dat is ook niet echt erg
         $self->session->db->write("update Registration set $_=? where registrationId=?", [
             $options->{ $_ },
@@ -278,7 +281,7 @@ sub www_addStep {
 
     #### TODO: catch exception
 
-    return $step->getEditForm->print;
+    return $step->www_edit;
 }
 
 #-------------------------------------------------------------------
@@ -299,6 +302,7 @@ sub www_listSteps {
     my $output = '<ul>';
     foreach my $step ( @{ $steps } ) {
         $output .= '<li>'
+            . $session->icon->delete('registration=register;func=deleteStep;stepId='.$step->stepId.';registrationId='.$self->registrationId)
             . '<a href="'
             .   $session->url->page('registration=register;func=editStep;stepId='.$step->stepId.';registrationId='.$self->registrationId)
             . '">'
@@ -307,8 +311,9 @@ sub www_listSteps {
     }
 
     my $availableSteps = {
-        'WebGUI::Registration::Step::StepOne'   => 'StepOne',
-        'WebGUI::Registration::Step::StepTwo'   => 'StepTwo',
+        'WebGUI::Registration::Step::StepOne'       => 'StepOne',
+        'WebGUI::Registration::Step::StepTwo'       => 'StepTwo',
+        'WebGUI::Registration::Step::ProfileData'   => 'ProfileData',
     };
     my $addForm = 
           WebGUI::Form::formHeader( $session )
@@ -323,6 +328,19 @@ sub www_listSteps {
     $output .= "<li>$addForm</li>";
 
     return $output;
+}
+
+#-------------------------------------------------------------------
+sub www_deleteStep {
+    my $self    = shift;
+
+    my $stepId  = $self->session->form->process('stepId');
+
+    $self->session->db->write('delete from RegistrationStep where stepId=?', [
+        $stepId,
+    ]);
+
+    return $self->www_listSteps;
 }
 
 #-------------------------------------------------------------------
@@ -350,7 +368,7 @@ sub www_editStep {
     my $stepId  = $session->form->process('stepId');
     my $step    = WebGUI::Registration::Step->getStep( $session, $stepId );
 
-    return $step->getEditForm->print;
+    return $step->www_edit;
 }
 
 #-------------------------------------------------------------------
@@ -402,7 +420,7 @@ sub www_viewStep {
     my $currentStep = $self->getCurrentStep;
 
     if ( defined $currentStep ) {
-        $output = $currentStep->view . $currentStep->getStepForm->print;
+        $output = $currentStep->www_view;
     }
     else {
         # Completed last step succesfully.
