@@ -5,14 +5,47 @@ use strict;
 use base qw{ WebGUI::Registration::Step };
 
 #-------------------------------------------------------------------
+sub apply {
+
+}
+
+#-------------------------------------------------------------------
 sub definition {
     my $class       = shift;
     my $session     = shift;
     my $definition  = shift;
+    my $i18n        = WebGUI::International->new( $session, 'Registration_Step_Homepage' );
+
+    tie my %profileFields, 'Tie::IxHash', 
+        map { $_->getId => $_->getCategory->getLabel . '::' . $_->getLabel }
+            @{ WebGUI::ProfileField->getFields($session) };
+
+    tie my %fields, 'Tie::IxHash', (
+        userPageContainer       => {
+            fieldType           => 'asset',
+            tab                 => 'properties',
+            label               => $i18n->echo('Put user pages on'),
+        },
+        packageContainer        => {
+            fieldType           => 'asset',
+            tab                 => 'properties',
+            label               => $i18n->echo('Fetch packages from'),
+        },
+        makeUserPageOwner       => {
+            fieldType           => 'yesNo',
+            tab                 => 'properties',
+            label               => $i18n->echo('Make user owner of his pages'),
+        },
+        urlStorageField         => {
+            fieldType       => 'selectBox',
+            label           => 'Store homepage url in field',
+            options         => \%profileFields,
+        }
+    );
 
     push @{ $definition }, {
         name        => 'Homepage',
-        properties  => { },
+        properties  => \%fields,
         namespace   => 'WebGUI::Registration::Step::Homepage',
     };
 
@@ -21,21 +54,44 @@ sub definition {
 
 #-------------------------------------------------------------------
 sub getSummaryTemplateVars {
-    my $self = shift;
+    my $self                    = shift;
+    my $includeAdminControls    = shift;
+    my $session                 = $self->session;
+    my @fields;
 
+    # Fetch preferred homepage url
     my $preferredHomepageUrl = $self->getConfigurationData->{ preferredHomepageUrl };
 
+    # Fetch available packages
+    my $packageContainer = WebGUI::Asset->newByDynamicClass($self->session, $self->get('packageContainer'));
+    my %packageList = map { $_->getId => $_->get('title') } @{ $packageContainer->getLineage(['children'], {
+        returnObjects   => 1,
+        whereClause     => 'assetData.isPackage = 1',
+    })};
+
+    # Preferred homepage url
+    push @fields, {
+        field_label         => 'Your homepage',
+        field_value         => $preferredHomepageUrl,
+        field_formElement   => WebGUI::Form::text( $session, { 
+            name    => 'preferredHomepageUrl', 
+            value   => $preferredHomepageUrl,
+        }),
+    };
+    # Package to deploy
+    push @fields, {
+        field_label         => 'Choose package',
+        field_value         => $session->form->process('packageId'),
+        field_formElement   => WebGUI::Form::selectBox( $session, {
+            name    => 'packageId',
+            value   => $session->form->process('packageId'),
+            options => \%packageList,
+        }),
+    } if $includeAdminControls;
+
+    # Setup tmpl_var
     my $var = {
-        field_loop          => [ 
-            { 
-                field_label         => 'Your homepage',
-                field_value         => $preferredHomepageUrl,
-                field_formElement   => WebGUI::Form::text($self->session, { 
-                    name    => 'preferredHomepageUrl', 
-                    value   => $preferredHomepageUrl,
-                }),
-            } 
-        ],
+        field_loop          => \@fields, 
         category_label      => $self->get('title'),
         category_edit_url   =>
             $self->session->url->page('registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registrationId),
@@ -43,6 +99,93 @@ sub getSummaryTemplateVars {
 
     return ( $var );    
 }
+
+#-------------------------------------------------------------------
+sub installUserPage {
+    my $self        = shift;
+    my $parameters  = shift;
+
+    my $user        = $self->getRegistration->getCurrentUser;
+    my $session     = $self->session;
+    my $i18n        = WebGUI::International->new($session, 'MijnArts');
+
+    my $userGroup;
+
+    # Deploy package under a seperate version tag.
+    my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
+    my $tempVersionTag      = WebGUI::VersionTag->create($session, {
+        name    => 'Installation of user pages for '.$user->username,
+    });
+    $tempVersionTag->setWorking;
+
+    #### TODO: Check if a user object has been instanciated.
+
+    # Deploy package
+    my $userPageRoot = WebGUI::Asset->newByDynamicClass( $session, $self->get('userPageContainer') );
+
+    #### TODO: Complain if $userPageRoot does not exist.
+   
+    my $packageMasterAsset  = WebGUI::Asset->newByDynamicClass( $session, $parameters->{packageId} );
+    my $masterLineage       = $packageMasterAsset->get("lineage");
+
+    if (defined $packageMasterAsset && $self->get("lineage") !~ /^$masterLineage/) {
+        my $assetProperties = {};
+        # Set privileges of deployed package;
+        if ($self->get('makeUserPageOwner')) {
+            $assetProperties->{ownerUserId} = $user->userId;
+#            $assetProperties->{groupIdView} = $groupIdView;
+#            $assetProperties->{groupIdEdit} = $userGroup->getId if ($userGroup);
+        }
+
+        #### NOTE: $fullName is used to replace the title and menuTitle of the root of the deployed asset.
+        ####       This is hardcoded for now. Therefore the first, middle and lastName must be entered.
+        my $fullName = join(' ', (
+            $user->profileField('firstName'),
+            $user->profileField('middleName'),
+            $user->profileField('lastName')
+        ));
+
+        # Figure out the root url of the deployed package.
+        my $deployedPackageRootUrl = 
+               $session->form->process('rootUrlOverride') 
+            || '/'.$user->profileField('firstName').$user->profileField('middleName').$user->profileField('lastName');
+            
+        # Deploy package under userPageRoot
+		my $deployedTreeMaster = $packageMasterAsset->duplicateBranch;
+		$deployedTreeMaster->setParent($userPageRoot);
+		$deployedTreeMaster->update({ 
+            isPackage   => 0, 
+            url         => $deployedPackageRootUrl, 
+            title       => $fullName,
+            menuTitle   => $fullName,
+
+            %$assetProperties,
+        }); #, styleTemplateId=>$self->get("styleTemplateId")});
+
+        # Store the root url in the user profile
+        $user->profileField($self->get('urlStorageField'), $deployedTreeMaster->getUrl);
+
+        # Set urls of deployed package
+        my $updatePages = $deployedTreeMaster->getLineage( ['descendants'], {returnObjects => 1} );
+        foreach my $currentAsset (@$updatePages) {
+            # Figure out correct url
+            $assetProperties->{url} = $currentAsset->getParent->get('url') . '/' . $currentAsset->get('menuTitle');
+
+            if ($currentAsset->get('className') =~ m/^WebGUI::Asset::Wobject::Collaboration/ && $userGroup) {
+                $assetProperties->{postGroupId} = $userGroup->getId;
+                $assetProperties->{canStartThreadGroupId} = $userGroup->getId;
+            }
+
+            # Apply overrides
+            $currentAsset->update({ %$assetProperties });
+        }
+    }
+ 
+    # Commit the tag and return the user to their previous tag
+    $tempVersionTag->commit;
+    $currentVersionTag->setWorking if (defined $currentVersionTag);
+}
+
 
 #-------------------------------------------------------------------
 sub isComplete {

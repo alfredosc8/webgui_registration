@@ -34,12 +34,17 @@ sub _buildObj {
 }
 
 #-------------------------------------------------------------------
+sub apply {
+    return;
+}
+
+#-------------------------------------------------------------------
 sub create {
     my $class           = shift;
     my $session         = shift;
     my $registration    = shift;
     my $stepId          = $session->id->generate;
-    my $namespace       = $class->definition->[0]->{ namespace };
+    my $namespace       = $class->definition( $session )->[0]->{ namespace };
 
     my $maxStepOrder    = $session->db->quickScalar(
         'select max(stepOrder) from RegistrationStep where registrationId=?',
@@ -139,7 +144,7 @@ sub getEditForm {
         -name   => 'registrationId',
         -value  => $self->registrationId,
     );
-    $f->dynamicForm( $self->definition, 'properties', $self );
+    $f->dynamicForm( $self->definition( $session ), 'properties', $self );
 
     return $f;
 }
