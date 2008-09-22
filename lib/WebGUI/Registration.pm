@@ -9,15 +9,55 @@ use JSON qw{ encode_json decode_json };
 use Data::Dumper;
 use WebGUI::Utility;
 
-readonly session                => my %session;
-readonly registrationId         => my %registrationId;
-readonly url                    => my %url;
-readonly registrationSteps      => my %registrationSteps;
-readonly styleTemplateId        => my %styleTemplateId;
-readonly stepTemplateId         => my %stepTemplateId;
-readonly confirmationTemplateId => my %confirmationTemplateId;
-readonly registrationCompleteTemplateId => my %registrationCompleteTemplateId;
-readonly title                  => my %title;
+readonly session            => my %session;
+readonly registrationId     => my %registrationId;
+readonly registrationSteps  => my %registrationSteps;
+readonly options            => my %options;
+
+sub definition {
+    my $class       = shift;
+    my $session     = shift;
+    my $definition  = shift;
+
+    tie my %fields, 'Tie::IxHash', (
+        title   => {
+            fieldType   => 'text',
+            label       => 'Title',
+        },
+        url     => {
+            fieldType   => 'text',
+            label       => 'URL',
+        },
+        styleTemplateId => {
+            fieldType   => 'template',
+            label       => 'Style',
+            namespace   => 'style',
+        },
+        stepTemplateId  => {
+            fieldType   => 'template', 
+            label       => 'Step Template',
+            namespace   => 'Registration/Step',
+        },
+        confirmationTemplateId  => {
+            fieldType   => 'template',
+            label       => 'Confirmation Template',
+            namespace   => 'Registration/Confirm',
+        },
+        registrationCompleteTemplateId => {
+            fieldType   => 'template',
+            label       => 'Registration Complete Message',
+            namespace   => 'Registration/CompleteMessage',
+        },
+    );
+
+    push  @{ $definition }, {
+        properties      => \%fields,
+        tableName       => 'Registration',
+    };
+
+    return $definition;
+};
+
 
 #-------------------------------------------------------------------
 sub _buildObj {
@@ -59,16 +99,11 @@ sub _buildObj {
     bless       $self, $class;
     register    $self;
 
-    my $id                                  = id $self;
-    $session                        { $id } = $session;
-    $registrationId                 { $id } = $registrationId;
-    $url                            { $id } = $options->{ url };
-    $styleTemplateId                { $id } = $options->{ styleTemplateId };
-    $stepTemplateId                 { $id } = $options->{ stepTemplateId };
-    $confirmationTemplateId         { $id } = $options->{ confirmationTemplateId };
-    $registrationCompleteTemplateId { $id } = $options->{ registrationCompleteTemplateId };
-    $title                          { $id } = $options->{ title };
-    $registrationSteps              { $id } = $registrationSteps;
+    my $id                      = id $self;
+    $session            { $id } = $session;
+    $registrationId     { $id } = $registrationId;
+    $registrationSteps  { $id } = $registrationSteps;
+    $options            { $id } = $options;
 
     return $self;
 }
@@ -139,6 +174,24 @@ sub getCurrentStep {
 }
 
 #-------------------------------------------------------------------
+sub get {
+    my $self    = shift;
+    my $key     = shift;
+
+    if ( $key ) {
+        if ( exists $self->options->{ $key } ) {
+            return $self->options->{ $key };
+        }
+        else {
+            #### TODO: throw exception.
+            die "Unknown key in Registration->get";
+        }
+    }
+
+    return { %{ $self->options } };
+}
+
+#-------------------------------------------------------------------
 sub getEditForm {
     my $self    = shift;
     my $session = $self->session;
@@ -156,40 +209,7 @@ sub getEditForm {
         -name       => 'registrationId',
         -value      => $self->registrationId,
     );
-    $f->text(
-        -name       => 'title',
-        -value      => $self->title,
-        -label      => 'Title',
-    );
-    $f->text(
-        -name       => 'url',
-        -value      => $self->url,
-        -label      => 'URL',
-    );
-    $f->template(
-        -name       => 'styleTemplateId',
-        -value      => $self->styleTemplateId,
-        -label      => 'Style',
-        -namespace  => 'style',
-    );
-    $f->template(
-        -name       => 'stepTemplateId',
-        -value      => $self->stepTemplateId,
-        -label      => 'Step Template',
-        -namespace  => 'Registration/Step',
-    );
-    $f->template(
-        -name       => 'confirmationTemplateId',
-        -value      => $self->confirmationTemplateId,
-        -label      => 'Confirmation Template',
-        -namespace  => 'Registration/Confirm',
-    );
-    $f->template(
-        -name       => 'registrationCompleteTemplateId',
-        -value      => $self->registrationCompleteTemplateId,
-        -label      => 'Registration Complete Message',
-        -namespace  => 'Registration/CompleteMessage',
-    );
+    $f->dynamicForm( $self->definition( $session ), 'properties', $self );
     $f->submit;
 
     return $f;
@@ -214,25 +234,42 @@ sub new {
 #-------------------------------------------------------------------
 sub processPropertiesFromFormPost {
     my $self    = shift;
-    my $form    = $self->session->form;
+    my $session = $self->session;
 
-    my $title                   = $form->process( 'title'           );
-    my $url                     = $form->process( 'url'             );
-    my $stepTemplateId          = $form->process( 'stepTemplateId'  );
-    my $styleTemplateId         = $form->process( 'styleTemplateId' );
-    my $confirmationTemplateId  = $form->process( 'confirmationTemplateId'  );
-    my $registrationCompleteTemplateId = $form->process( 'registrationCompleteTemplateId' );
+    my $formParam   = $session->form->paramsHashRef;
+    my $data        = { };
+
+    foreach my $definition ( @{ $self->definition( $session ) } ) {
+        foreach my $key ( keys %{ $definition->{ properties } } ) {
+            if ( exists $formParam->{ $key } ) {
+                $data->{ $key } = $session->form->process(
+                    $key,
+                    $definition->{ properties }->{ $key }->{ fieldType      },
+                    $definition->{ properties }->{ $key }->{ defaultValue   },
+                );
+            }
+        }
+    }
+
+#    my $title                   = $form->process( 'title'           );
+#    my $url                     = $form->process( 'url'             );
+#    my $stepTemplateId          = $form->process( 'stepTemplateId'  );
+#    my $styleTemplateId         = $form->process( 'styleTemplateId' );
+#    my $confirmationTemplateId  = $form->process( 'confirmationTemplateId'  );
+#    my $registrationCompleteTemplateId = $form->process( 'registrationCompleteTemplateId' );
 
     #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
 
-    $self->update({
-        title                   => $title,
-        url                     => $url,
-        styleTemplateId         => $styleTemplateId,
-        stepTemplateId          => $stepTemplateId,
-        confirmationTemplateId  => $confirmationTemplateId,
-        registrationCompleteTemplateId => $registrationCompleteTemplateId,
-    });
+    $self->update( $data );
+
+#    $self->update({
+#        title                   => $title,
+#        url                     => $url,
+#        styleTemplateId         => $styleTemplateId,
+#        stepTemplateId          => $stepTemplateId,
+#        confirmationTemplateId  => $confirmationTemplateId,
+#        registrationCompleteTemplateId => $registrationCompleteTemplateId,
+#    });
 
     # Fetch the urlTriggers setting
     my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
@@ -249,7 +286,7 @@ sub processPropertiesFromFormPost {
     }
 
     # Add the url to the setting
-    $urlTriggers->{ $url }  = $self->registrationId;
+    $urlTriggers->{ $data->{ url } }  = $self->registrationId;
     $self->session->setting->set( 'registrationUrlTriggers', encode_json( $urlTriggers ) );
 }
 
@@ -258,7 +295,7 @@ sub processStyle {
     my $self    = shift;
     my $content = shift;
 
-    my $styleTemplateId = $self->styleTemplateId;
+    my $styleTemplateId = $self->get('styleTemplateId');
 
     return $self->session->style->process( $content, $styleTemplateId );
 }
@@ -267,15 +304,23 @@ sub processStyle {
 sub update {
     my $self    = shift;
     my $options = shift;
+    my $session = shift;
+    my $update  = {};
 
-    my @available = qw{ title url stepTemplateId styleTemplateId confirmationTemplateId registrationCompleteTemplateId };
-    foreach (keys %$options) {
-    $self->session->errorHandler->warn("[[$_]][[".$options->{$_}."]]");
-        next unless isIn( $_, @available );
+    foreach my $definition ( @{ $self->definition( $session ) } ) {
+        foreach my $key ( keys %{ $definition->{ properties } } ) {
+            next unless exists $options->{ $key };
 
-        #### TODO: Dit performed natuurlijk niet, maar dat is ook niet echt erg
-        $self->session->db->write("update Registration set $_=? where registrationId=?", [
-            $options->{ $_ },
+            push @{ $update->{ $definition->{tableName} }->{ columns } }, $key;
+            push @{ $update->{ $definition->{tableName} }->{ data    } }, $options->{ $key };
+        }
+    }
+    
+    foreach my $table ( keys %{ $update } ) {
+        my $updateString = join ', ', map { "$_=?" } @{ $update->{ $table }->{ columns } };
+
+        $self->session->db->write("update $table set $updateString where registrationId=?", [
+            @{ $update->{ $table }->{ data } },
             $self->registrationId,
         ] );
 
@@ -333,7 +378,7 @@ sub www_confirmRegistrationData {
             $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->registrationId),
     };
 
-    my $template = WebGUI::Asset::Template->new( $session, $self->confirmationTemplateId );
+    my $template = WebGUI::Asset::Template->new( $session, $self->get('confirmationTemplateId');
     return $self->processStyle( $template->process( $var ) );
 }
 
@@ -358,7 +403,7 @@ sub www_completeRegistration {
 #    $self->setRegistrationStatus( 'pending' );
 
     my $var = {};
-    my $template    = WebGUI::Asset::Template->new( $session, $self->registrationCompleteTemplateId );
+    my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
     return $self->processStyle( $template->process($var) )
 }
 

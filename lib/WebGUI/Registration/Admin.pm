@@ -42,7 +42,7 @@ sub www_view {
             . WebGUI::Form::submit(     $session, {                             -value => 'Steps'       } )
             . WebGUI::Form::formFooter( $session );
 
-        $output .= "<li>$editButton $stepsButton " .  $registration->title . '</li>';
+        $output .= "<li>$editButton $stepsButton " .  $registration->get('title') . '</li>';
     }
 
     $output .= '<li><a href="'.$session->url->page('registration=admin;func=addRegistration').'">NEW REG</a>';

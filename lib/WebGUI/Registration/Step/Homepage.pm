@@ -117,7 +117,7 @@ sub view {
             }
         ];
 
-    my $template = WebGUI::Asset::Template->new($self->session, $self->getRegistration->stepTemplateId);
+    my $template = WebGUI::Asset::Template->new( $self->session, $self->getRegistration->get('stepTemplateId') );
     return $template->process($var);
 }
 

@@ -278,7 +278,7 @@ sub www_getProfileCategoryData {
     $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
     $var->{ error_loop      } = [ map { {error_message => $_} } @$error ];
 
-    my $template = WebGUI::Asset::Template->new($self->session, $self->getRegistration->stepTemplateId);
+    my $template = WebGUI::Asset::Template->new( $self->session, $self->getRegistration->get('stepTemplateId') );
     return $template->process($var);
 }
 
