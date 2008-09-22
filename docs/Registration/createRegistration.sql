@@ -57,6 +57,18 @@ CREATE TABLE `RegistrationStep_accountData` (
   `configurationData` text,
   PRIMARY KEY  (`stepId`,`userId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+--
+-- Table structure for table `Registration_status`
+--
+
+DROP TABLE IF EXISTS `Registration_status`;
+CREATE TABLE `Registration_status` (
+  `registrationId` varchar(22) NOT NULL,
+  `userId` varchar(22) NOT NULL,
+  `status` varchar(20) NOT NULL default 'setup',
+  PRIMARY KEY  (`registrationId`,`userId`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -67,4 +79,4 @@ CREATE TABLE `RegistrationStep_accountData` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2008-09-22  9:43:26
+-- Dump completed on 2008-09-22 12:39:39
