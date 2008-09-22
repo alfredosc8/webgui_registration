@@ -23,11 +23,17 @@ sub definition {
 sub getSummaryTemplateVars {
     my $self = shift;
 
+    my $preferredHomepageUrl = $self->getConfigurationData->{ preferredHomepageUrl };
+
     my $var = {
         field_loop          => [ 
             { 
-                field_label     => 'Your homepage',
-                field_value     => $self->getConfigurationData->{ preferredHomepageUrl },
+                field_label         => 'Your homepage',
+                field_value         => $preferredHomepageUrl,
+                field_formElement   => WebGUI::Form::text($self->session, { 
+                    name    => 'preferredHomepageUrl', 
+                    value   => $preferredHomepageUrl,
+                }),
             } 
         ],
         category_label      => $self->get('title'),
@@ -35,7 +41,7 @@ sub getSummaryTemplateVars {
             $self->session->url->page('registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registrationId),
     };
 
-    return $var;    
+    return ( $var );    
 }
 
 #-------------------------------------------------------------------

@@ -17,6 +17,83 @@ sub www_editSave {
 }
 
 #-------------------------------------------------------------------
+sub www_listPendingRegistrations {
+    my $session = shift;
+
+    my $registrationId  = $session->form->process( 'registrationId' );
+
+    my @userIds = $session->db->buildArray("select userId from Registration_status where status='pending'and registrationId=?", [
+        $registrationId,
+    ]);
+
+    my $output = '<h1>Accounts waiting for approval</h1>';
+    $output .= '<table>';
+    foreach (@userIds) {
+        my $user = WebGUI::User->new($session, $_);
+
+        $output .= '<tr><td><a href="'.$session->url->page('func=deleteAccount;uid='.$_).'">DELETE</a></td>';
+        $output .= '<td><a href="'
+            .
+            $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
+            .'">EDIT</a></td>';
+        $output .= '<td>'.$user->username.'</td><td>'.$user->profileField('homepageUrl').'</td></tr>';
+    }
+    $output .= '</table>';
+
+    return $output;
+}
+
+sub www_editRegistrationInstanceData {
+    my $session = shift;
+
+    my $registrationId  = $session->form->process( 'registrationId' );
+    my $userId          = $session->form->process( 'userId'         );
+
+#    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $registrationId );
+    my $user            = WebGUI::User->new( $session, $userId );
+
+    my $f = WebGUI::HTMLForm->new( $session );
+    $f->hidden(
+        name    => 'registration',
+        value   => 'admin',
+    );
+    $f->hidden(
+        name    => 'registrationId',
+        value   => $registrationId,
+    );
+    $f->hidden(
+        name    => 'userId',    
+        value   => $userId,
+    );
+    $f->hidden(
+        name    => 'func',
+        value   => 'editRegistrationInstanceDataSave',
+    );
+    $f->readOnly(
+        label   => 'Username',
+        value   => $user->username,
+    );
+
+    foreach my $step ( @{ $steps } ) {
+        foreach my $category ( $step->getSummaryTemplateVars ) {
+            $f->fieldSetStart( $category->{ category_label } );
+            foreach my $field ( @{ $category->{ field_loop } } ) {
+                $f->readOnly(
+                    label   => $field->{ field_label        },
+                    value   => $field->{ field_formElement  },
+                );
+            }
+            $f->fieldSetEnd;
+        }
+    }
+
+    $f->submit;
+
+    return $f->print;
+
+}
+#-------------------------------------------------------------------
 sub www_view {
     my $session = shift;
 
@@ -41,8 +118,15 @@ sub www_view {
             . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id           } )
             . WebGUI::Form::submit(     $session, {                             -value => 'Steps'       } )
             . WebGUI::Form::formFooter( $session );
-
-        $output .= "<li>$editButton $stepsButton " .  $registration->get('title') . '</li>';
+        my $accountButton =
+              WebGUI::Form::formHeader( $session )
+            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'           } )
+            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listPendingRegistrations' } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id               } )
+            . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts' } )
+            . WebGUI::Form::formFooter( $session );
+            
+        $output .= "<li>$editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';
     }
 
     $output .= '<li><a href="'.$session->url->page('registration=admin;func=addRegistration').'">NEW REG</a>';

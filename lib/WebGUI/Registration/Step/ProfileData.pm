@@ -107,6 +107,8 @@ sub getEditForm {
 sub getSummaryTemplateVars {
     my $self            = shift;
     my $session         = $self->session;
+#### TODO: user niet meer uit form post halen.
+    my $user            = WebGUI::User->new( $session, $session->form->process('userId') || $self->getRegistration->getCurrentUserId);
     my @categoryLoop    = ();
 
     # Get entered profile data
@@ -125,8 +127,9 @@ sub getSummaryTemplateVars {
         my @fields;
         foreach my $field (@{ $category->getFields }) {
             push(@fields, {
-                field_label       => $field->getLabel,
-                field_value       => $field->formField(undef, 2),
+                field_label         => $field->getLabel,
+                field_value         => $field->formField(undef, 2, $user),
+                field_formElement   => $field->formField(undef, 0, $user),
             });
         }
 
