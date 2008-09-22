@@ -27,6 +27,7 @@ CREATE TABLE `Registration` (
   `stepTemplateId` varchar(22) default NULL,
   `styleTemplateId` varchar(22) default NULL,
   `confirmationTemplateId` varchar(22) default NULL,
+  `registrationCompleteTemplateId` varchar(22) default NULL,
   PRIMARY KEY  (`registrationId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
@@ -54,7 +55,6 @@ CREATE TABLE `RegistrationStep_accountData` (
   `userId` varchar(22) NOT NULL,
   `status` varchar(20) default NULL,
   `configurationData` text,
-  `registrationCompleteTemplateId` varchar(22) default NULL,
   PRIMARY KEY  (`stepId`,`userId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -67,4 +67,4 @@ CREATE TABLE `RegistrationStep_accountData` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2008-09-22  9:23:37
+-- Dump completed on 2008-09-22  9:43:26

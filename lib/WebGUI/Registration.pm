@@ -184,6 +184,12 @@ sub getEditForm {
         -label      => 'Confirmation Template',
         -namespace  => 'Registration/Confirm',
     );
+    $f->template(
+        -name       => 'registrationCompleteTemplateId',
+        -value      => $self->registrationCompleteTemplateId,
+        -label      => 'Registration Complete Message',
+        -namespace  => 'Registration/CompleteMessage',
+    );
     $f->submit;
 
     return $f;
@@ -262,7 +268,7 @@ sub update {
     my $self    = shift;
     my $options = shift;
 
-    my @available = qw{ title url stepTemplateId styleTemplateId confirmationTemplateId };
+    my @available = qw{ title url stepTemplateId styleTemplateId confirmationTemplateId registrationCompleteTemplateId };
     foreach (keys %$options) {
     $self->session->errorHandler->warn("[[$_]][[".$options->{$_}."]]");
         next unless isIn( $_, @available );
@@ -323,6 +329,8 @@ sub www_confirmRegistrationData {
     
     my $var = {
         category_loop   => \@categoryLoop,
+        proceed_url     =>
+            $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->registrationId),
     };
 
     my $template = WebGUI::Asset::Template->new( $session, $self->confirmationTemplateId );
@@ -330,7 +338,7 @@ sub www_confirmRegistrationData {
 }
 
 #-------------------------------------------------------------------
-sub www_confirmRegistrationDataSave {
+sub www_completeRegistration {
     my $self    = shift;
     my $session = $self->session;
 
