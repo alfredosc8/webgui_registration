@@ -16,6 +16,7 @@ readonly registrationSteps      => my %registrationSteps;
 readonly styleTemplateId        => my %styleTemplateId;
 readonly stepTemplateId         => my %stepTemplateId;
 readonly confirmationTemplateId => my %confirmationTemplateId;
+readonly registrationCompleteTemplateId => my %registrationCompleteTemplateId;
 readonly title                  => my %title;
 
 #-------------------------------------------------------------------
@@ -58,15 +59,16 @@ sub _buildObj {
     bless       $self, $class;
     register    $self;
 
-    my $id                      = id $self;
-    $session            { $id } = $session;
-    $registrationId     { $id } = $registrationId;
-    $url                { $id } = $options->{ url };
-    $styleTemplateId    { $id } = $options->{ styleTemplateId };
-    $stepTemplateId     { $id } = $options->{ stepTemplateId };
-    $confirmationTemplateId { $id } = $options->{ confirmationTemplateId };
-    $title              { $id } = $options->{ title };
-    $registrationSteps  { $id } = $registrationSteps;
+    my $id                                  = id $self;
+    $session                        { $id } = $session;
+    $registrationId                 { $id } = $registrationId;
+    $url                            { $id } = $options->{ url };
+    $styleTemplateId                { $id } = $options->{ styleTemplateId };
+    $stepTemplateId                 { $id } = $options->{ stepTemplateId };
+    $confirmationTemplateId         { $id } = $options->{ confirmationTemplateId };
+    $registrationCompleteTemplateId { $id } = $options->{ registrationCompleteTemplateId };
+    $title                          { $id } = $options->{ title };
+    $registrationSteps              { $id } = $registrationSteps;
 
     return $self;
 }
@@ -213,6 +215,7 @@ sub processPropertiesFromFormPost {
     my $stepTemplateId          = $form->process( 'stepTemplateId'  );
     my $styleTemplateId         = $form->process( 'styleTemplateId' );
     my $confirmationTemplateId  = $form->process( 'confirmationTemplateId'  );
+    my $registrationCompleteTemplateId = $form->process( 'registrationCompleteTemplateId' );
 
     #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
 
@@ -222,6 +225,7 @@ sub processPropertiesFromFormPost {
         styleTemplateId         => $styleTemplateId,
         stepTemplateId          => $stepTemplateId,
         confirmationTemplateId  => $confirmationTemplateId,
+        registrationCompleteTemplateId => $registrationCompleteTemplateId,
     });
 
     # Fetch the urlTriggers setting
@@ -303,6 +307,51 @@ sub www_addStep {
     #### TODO: catch exception
 
     return $step->www_edit;
+}
+
+#-------------------------------------------------------------------
+sub www_confirmRegistrationData {
+    my $self    = shift;
+    my $session = $self->session;
+    
+    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $self->registrationId );
+    my @categoryLoop    = ();
+
+    foreach my $step ( @{ $steps } ) {
+        push @categoryLoop, $step->getSummaryTemplateVars;
+    }
+    
+    my $var = {
+        category_loop   => \@categoryLoop,
+    };
+
+    my $template = WebGUI::Asset::Template->new( $session, $self->confirmationTemplateId );
+    return $self->processStyle( $template->process( $var ) );
+}
+
+#-------------------------------------------------------------------
+sub www_confirmRegistrationDataSave {
+    my $self    = shift;
+    my $session = $self->session;
+
+    #### TODO:Check registration complete
+
+    #### TODO: Send Email
+#    my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplate'));
+#    my $mailBody        = $mailTemplate->process( {} );
+#    my $mail            = WebGUI::Mail::Send->create($self->session, {
+#        toUser      => $user->userId,
+#        subject     => $self->get('setupCompleteMailSubject'),
+#    });
+#    $mail->addText($mailBody);
+#    $mail->queue;
+
+    #### TODO: registration status.
+#    $self->setRegistrationStatus( 'pending' );
+
+    my $var = {};
+    my $template    = WebGUI::Asset::Template->new( $session, $self->registrationCompleteTemplateId );
+    return $self->processStyle( $template->process($var) )
 }
 
 #-------------------------------------------------------------------
@@ -429,25 +478,6 @@ sub www_do {
 }
 
 
-#-------------------------------------------------------------------
-sub www_confirmRegistrationData {
-    my $self    = shift;
-    my $session = $self->session;
-    
-    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $self->registrationId );
-    my @categoryLoop    = ();
-
-    foreach my $step ( @{ $steps } ) {
-        push @categoryLoop, $step->getSummaryTemplateVars;
-    }
-    
-    my $var = {
-        category_loop   => \@categoryLoop,
-    };
-
-    my $template = WebGUI::Asset::Template->new( $session, $self->confirmationTemplateId );
-    return $self->processStyle( $template->process( $var ) );
-}
 
 #-------------------------------------------------------------------
 sub www_viewStep {
