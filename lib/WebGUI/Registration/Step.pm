@@ -103,7 +103,7 @@ sub get {
 #-------------------------------------------------------------------
 sub getConfigurationData {
     my $self    = shift;
-    my $userId  = shift || $self->session->user->userId;
+    my $userId  = shift || $self->getRegistration->getCurrentUserId;
 
     my $configurationData = $self->session->db->quickScalar(
         'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
@@ -292,7 +292,7 @@ sub setConfigurationData {
     my $self    = shift;
     my $key     = shift;
     my $value   = shift;
-    my $userId  = shift || $self->session->user->userId;
+    my $userId  = shift || $self->getRegistration->getCurrentUserId;
 
     my $configurationData = $self->getConfigurationData;
     $configurationData->{ $key } = $value;
