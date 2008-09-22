@@ -4,6 +4,7 @@ use strict;
 
 use Class::InsideOut qw{ :std };
 use List::Util qw{ first };
+use List::MoreUtils qw{ any };
 use WebGUI::Pluggable;
 use JSON qw{ encode_json decode_json };
 use Data::Dumper;
@@ -192,6 +193,13 @@ sub get {
 }
 
 #-------------------------------------------------------------------
+sub getCurrentUserId {
+    my $self    = shift;
+
+    return $self->session->user->userId;
+}
+
+#-------------------------------------------------------------------
 sub getEditForm {
     my $self    = shift;
     my $session = $self->session;
@@ -213,6 +221,22 @@ sub getEditForm {
     $f->submit;
 
     return $f;
+}
+
+#-------------------------------------------------------------------
+sub getRegistrationStatus {
+    my $self    = shift;
+    my $session = shift;
+
+    my $status  = $session->db->quickScalar(
+        'select status from Registration_status where registrationId=? and userId=?', 
+        [
+            $self->registrationId,
+            $self->getCurrentUserId,
+        ]
+    );
+
+    return $status || 'setup';
 }
 
 #-------------------------------------------------------------------
@@ -300,6 +324,29 @@ sub processStyle {
     return $self->session->style->process( $content, $styleTemplateId );
 }
 
+
+#-------------------------------------------------------------------
+sub setRegistrationStatus {
+    my $self    = shift;
+    my $status  = shift;
+    my $session = $self->session;
+    
+    # Check whether a valid status is passed
+    #### TODO: throw exception;
+    die "wrong status [$status]" unless any { $status eq $_ } qw{ setup pending approved };
+
+    # Write the status to the db
+    $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
+        $self->registrationId,
+        $self->getCurrentUserId,
+    ]);
+    $session->db->write('insert into Registration_status (status, registrationId, userId) values (?,?,?)', [
+        $status,
+        $self->registrationId,
+        $self->getCurrentUserId,
+    ]);
+}
+
 #-------------------------------------------------------------------
 sub update {
     my $self    = shift;
@@ -378,7 +425,7 @@ sub www_confirmRegistrationData {
             $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->registrationId),
     };
 
-    my $template = WebGUI::Asset::Template->new( $session, $self->get('confirmationTemplateId');
+    my $template = WebGUI::Asset::Template->new( $session, $self->get('confirmationTemplateId') );
     return $self->processStyle( $template->process( $var ) );
 }
 
@@ -399,8 +446,7 @@ sub www_completeRegistration {
 #    $mail->addText($mailBody);
 #    $mail->queue;
 
-    #### TODO: registration status.
-#    $self->setRegistrationStatus( 'pending' );
+    $self->setRegistrationStatus( 'pending' );
 
     my $var = {};
     my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
@@ -537,6 +583,11 @@ sub www_viewStep {
     my $self = shift;
 
     my $output;
+
+    # Set site status
+    $self->setRegistrationStatus( 'pending' );
+
+    # Get current step
     my $currentStep = $self->getCurrentStep;
 
     if ( defined $currentStep ) {
