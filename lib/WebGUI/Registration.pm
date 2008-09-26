@@ -83,17 +83,17 @@ sub _buildObj {
 #        { stepId => 'ab002', namespace => 'WebGUI::Registration::Step::StepTwo'  },
 #    ];
 
-    # Get the completed steps for the current user session
-    my $completedStepsJSON  = $session->scratch->get('registration_completedSteps') || '{ }';  #'{ "ab002" : "1" }';
-    my $completedSteps      = decode_json( $completedStepsJSON );
-
-    # And apply those complete statuses to the steps in this Registration
-    for my $step (@{ $registrationSteps }) {
-        $step->{ complete } = exists $completedSteps->{ $step->{stepId} } 
-                            ? 1 
-                            : 0 
-                            ;
-    }
+#    # Get the completed steps for the current user session
+#    my $completedStepsJSON  = $session->scratch->get('registration_completedSteps') || '{ }';  #'{ "ab002" : "1" }';
+#    my $completedSteps      = decode_json( $completedStepsJSON );
+#
+#    # And apply those complete statuses to the steps in this Registration
+#    for my $step (@{ $registrationSteps }) {
+#        $step->{ complete } = exists $completedSteps->{ $step->{stepId} } 
+#                            ? 1 
+#                            : 0 
+#                            ;
+#    }
 
 
     # --- Setup InsideOut object --------------------------------
@@ -124,54 +124,46 @@ sub create {
 }
     
 
-#-------------------------------------------------------------------
-sub completeStep {
-    my $self    = shift;
-    my $stepId  = shift;
-
-    #### TODO: Checken of de accessors gegenereerd door C::IO de values kopieren of niet.
-    my ($step) = grep { $_->{ stepId } eq $stepId } @{ $self->registrationSteps } ;
-    $step->{ complete } = 1;
-
-    # Update completed steps tracker
-    $self->session->scratch->set( 'registration_completedSteps',
-        encode_json( { 
-            map     { $_->{ stepId   } => 1     } 
-            grep    { $_->{ complete }          } 
-                   @{ $self->registrationSteps }
-        } )
-    );
-   
-    $self->session->errorHandler->warn( 'CS: '. $self->session->scratch->get( 'registration_completedSteps' ) );
-    # Since we've just completed this step getCurrentStep will return the next.
-    return $self->getCurrentStep;
-}
+##-------------------------------------------------------------------
+#sub completeStep {
+#    my $self    = shift;
+#    my $stepId  = shift;
+#
+#    #### TODO: Checken of de accessors gegenereerd door C::IO de values kopieren of niet.
+#    my ($step) = grep { $_->{ stepId } eq $stepId } @{ $self->registrationSteps } ;
+#    $step->{ complete } = 1;
+#
+#    # Update completed steps tracker
+#    $self->session->scratch->set( 'registration_completedSteps',
+#        encode_json( { 
+#            map     { $_->{ stepId   } => 1     } 
+#            grep    { $_->{ complete }          } 
+#                   @{ $self->registrationSteps }
+#        } )
+#    );
+#   
+#    $self->session->errorHandler->warn( 'CS: '. $self->session->scratch->get( 'registration_completedSteps' ) );
+#    # Since we've just completed this step getCurrentStep will return the next.
+#    return $self->getCurrentStep;
+#}
 
 #-------------------------------------------------------------------
 sub getCurrentStep {
-    my $self = shift;
+    my $self    = shift;
+    my $session = $self->session;
 
     my $registrationSteps = $self->registrationSteps;
 
-    # Fetch configuration data 
-    my $currentStep = first { $_->{complete} == 0 } @$registrationSteps;
+    # Find first incomplete step and return it
+    foreach my $stepId ( map { $_->{stepId} } @{ $registrationSteps } ) {
+        # TODO: Catch exception.
+        my $step = WebGUI::Registration::Step->getStep( $session, $stepId );
 
-    # If all step are complete return undef.
-    return undef unless defined $currentStep;
+        return $step unless $step->isComplete;
+    }
 
-    # Load registration step plugin
-    #### TODO: getStep gebruiken
-    my $plugin = eval { 
-        WebGUI::Pluggable::instanciate( $currentStep->{namespace}, 'new', [
-            $self->session,
-            $currentStep->{ stepId },
-        ]);
-    };
-
-    $self->session->errorHandler->warn( $@.$! );
-    #### TODO: Catch exceptions;
-
-    return $plugin;
+    # All steps are complete, return undef.
+    return undef;
 }
 
 #-------------------------------------------------------------------
@@ -614,9 +606,9 @@ sub www_viewStepSave {
 
     $currentStep->processStepFormData;
 
-    if ( $currentStep->isComplete ) {
-        my $nextStep = $self->completeStep( $currentStep->stepId );
-    }
+#    if ( $currentStep->isComplete ) {
+#        my $nextStep = $self->completeStep( $currentStep->stepId );
+#    }
 
     return $self->www_viewStep;
 }

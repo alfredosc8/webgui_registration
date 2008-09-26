@@ -48,14 +48,14 @@ sub processStepFormData {
 
     my $proceed = $self->session->form->process('hopsa');
 
-    $self->{_hopsa} = $proceed;
+    $self->setConfigurationData('hopsa' => $proceed );
 }
 
 #-------------------------------------------------------------------
 sub isComplete {
     my $self = shift;
 
-    return $self->{_hopsa};
+    return $self->getConfigurationData->{ hopsa };
 }
 
 #-------------------------------------------------------------------

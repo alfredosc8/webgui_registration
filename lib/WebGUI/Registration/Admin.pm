@@ -43,6 +43,7 @@ sub www_listPendingRegistrations {
     return $output;
 }
 
+#-------------------------------------------------------------------
 sub www_editRegistrationInstanceData {
     my $session = shift;
 

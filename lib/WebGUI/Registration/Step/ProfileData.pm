@@ -148,13 +148,9 @@ sub getSummaryTemplateVars {
 #-------------------------------------------------------------------
 sub isComplete {
     my $self = shift;
-$self->session->errorHandler->warn( 'in iscomplete');
 
     my $completedProfileCategories  = $self->getConfigurationData->{ completedProfileCategories } || {};
     my $profileSteps                = $self->get('profileSteps');
-
-$self->session->errorHandler->warn( Dumper( $completedProfileCategories ) );
-$self->session->errorHandler->warn( Dumper( $profileSteps ) );
 
     foreach ( grep { /^profileStep\d+$/ } keys %{ $profileSteps } ) {
         return 0 unless $completedProfileCategories->{ $profileSteps->{$_} };
