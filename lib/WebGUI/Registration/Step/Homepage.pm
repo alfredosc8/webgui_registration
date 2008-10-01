@@ -196,12 +196,20 @@ sub isComplete {
 
 #-------------------------------------------------------------------
 sub processStepFormData {
-    my $self = shift;
+    my $self    = shift;
+    my $session = $self->session;
 
     #### TODO: privs ??????
+    my $url     = $session->form->process('preferredHomepageUrl');
+    unless ( $url ) {
+        $self->pushError( "De url is verplicht." );
+    }
+    if ( WebGUI::Asset->urlExists($session, $url) ) {
+        $self->pushError( "De url $url is al bezet" );
+    }
 
     # Store homepage url
-    $self->setConfigurationData('preferredHomepageUrl', $self->session->form->process('preferredHomepageUrl') );
+    $self->setConfigurationData('preferredHomepageUrl', $url );
 }
 
 #-------------------------------------------------------------------

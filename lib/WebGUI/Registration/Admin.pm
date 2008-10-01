@@ -114,8 +114,8 @@ sub www_editRegistrationInstanceDataSave {
     my @error;
     # Process and error check submitted form data.
     foreach my $step ( @{ $steps } ) {
-        $step->processStepApprovalData;    
-$session->errorHandler->warn('--[['.join(',', @{ $step->error }).']]--');
+        $step->processStepApprovalData;
+
         push @error, @{ $step->error };
     }
 
