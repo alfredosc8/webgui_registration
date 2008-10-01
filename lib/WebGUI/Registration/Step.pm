@@ -11,6 +11,7 @@ readonly session        => my %session;
 readonly stepId         => my %stepId;
 readonly options        => my %options;
 readonly registrationId => my %registrationId;
+readonly error          => my %error;
 
 #-------------------------------------------------------------------
 sub _buildObj {
@@ -29,6 +30,7 @@ sub _buildObj {
     $stepId         { $id } = $stepId;
     $options        { $id } = $options;
     $registrationId { $id } = $registrationId;
+    $error          { $id } = [];
 
     return $self;
 }
@@ -279,12 +281,34 @@ sub processStepFormData {
 }
 
 #-------------------------------------------------------------------
+=head2 processStepApprovalData
+
+This method is used to process all step instance data at once. Will call processStepFormData by default. If your
+step does not have substeps, you won't have to override this method.
+
+=cut
+
+sub processStepApprovalData {
+    my $self = shift;
+
+    return $self->processStepFormData;
+}
+
+#-------------------------------------------------------------------
 sub processStyle {
     my $self    = shift;
     my $content = shift;
 
 #### TODO: deze method verwijderen. en WG::Reg::processStyle gebruiken.
     return $self->getRegistration->processStyle( $content );
+}
+
+#-------------------------------------------------------------------
+sub pushError {
+    my $self            = shift;
+    my $errorMessage    = shift || return;
+
+    push @{ $error{ id $self } }, $errorMessage;
 }
 
 #-------------------------------------------------------------------

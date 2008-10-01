@@ -6,8 +6,6 @@ use Data::Dumper;
 
 use base qw{ WebGUI::Registration::Step };
 
-
-
 #-------------------------------------------------------------------
 sub definition {
     my $class       = shift;
@@ -63,6 +61,7 @@ sub getEditForm {
             $fieldForm->checkbox(
                 -name       => 'override_'.$field->getId.'_required',
                 -label      => 'Required',
+                -value      => 1,
                 -checked    => $profileOverrides->{ $field->getId }->{ required },
             );
             $fieldForm->textarea(
@@ -160,6 +159,45 @@ sub isComplete {
 }
 
 #-------------------------------------------------------------------
+=head2 processCategoryDataFromFormPost ( categoryId )
+
+Processes the category with id categoryId using posted form data.
+
+Returns an array ref containing error messages, if errors occurred.
+
+=cut
+
+sub processCategoryDataFromFormPost {
+    my $self        = shift;
+    my $categoryId  = shift;
+    my $session     = $self->session;
+
+    #### TODO: Throw exception on categoryId.
+
+    my $profileOverrides = $self->get('profileOverrides');
+
+    # Instanciate category.
+    my $category = WebGUI::ProfileCategory->new( $session, $categoryId );
+    
+    foreach my $field (@{ $category->getFields }) {
+        next unless $field->get('visible');
+
+        my $profileFieldData = $field->formProcess;
+$session->errorHandler->warn("[".$field->getLabel."][".$profileFieldData."]");
+
+        # Check for required fields.
+        if ($profileOverrides->{ $field->getId }->{ required } && !$profileFieldData) {
+            $self->pushError( $field->getLabel.' is verplicht' );
+        }
+        else {
+            # TODO: Wellicht ook iets doen als: error if (form->param('field') && !$profileFieldData)
+            # TODO: Check if arrays are saved correctly
+            $session->user->profileField($field->getId, $profileFieldData);
+        }
+    }
+}
+
+#-------------------------------------------------------------------
 sub processPropertiesFromFormPost {
     my $self = shift;
 
@@ -193,24 +231,67 @@ sub processPropertiesFromFormPost {
 
 #-------------------------------------------------------------------
 sub processStepFormData {
+    my $self    = shift;
+    my $session = $self->session;
+
+    # Fetch the profile step and override data
+    my $profileSteps     = $self->get('profileSteps');
+    my $profileOverrides = $self->get('profileOverrides');
+
+    # Figure out the current step. We don't use the scratch var because that doesn't protect against reloads.
+    # Doing it this way the order is still enforced.
+    my $categoryId  = $self->session->form->process('categoryId');
+    my $currentStep = { reverse %$profileSteps }->{$categoryId};           # switch keys/values to do reverse lookup.
+    $currentStep    =~ s{^profileStep(\d+)$}{$1};
+
+    my $completedProfileCategories = $self->getConfigurationData->{ completedProfileCategories } || {};
+    delete $completedProfileCategories->{ $categoryId };
+
+    $self->processCategoryDataFromFormPost( $categoryId );
+
+    # Return form with error messages
+    if ( @{ $self->error } ) {
+        # Make sure this category is not marked as complete.
+        delete $completedProfileCategories->{ $categoryId };
+        $self->setConfigurationData('completedProfileCategories' => $completedProfileCategories );
+
+#### TODO: Is deze nog wel nodig?
+        return $self->error;
+    }
+
+    # Mark this category as completed.
+    $completedProfileCategories->{ $categoryId } = 1;
+    $self->setConfigurationData('completedProfileCategories' => $completedProfileCategories );
+   
+    # Proceed with next step
+    my $nextStep = $currentStep + 1;
+    $self->session->scratch->set('currentProfileStep', $nextStep);
+    $self->session->scratch->set('currentCategoryId', $profileSteps->{"profileStep$nextStep"});
+
+    # Return no errors since there aren't any.
+    return [];
+};
+
+#-------------------------------------------------------------------
+sub processStepApprovalData {
     my $self = shift;
 
-    return $self->www_getProfileCategoryDataSave;
-};
+    my $profileSteps    = $self->get('profileSteps');
+    my @categories      = 
+        map    { $profileSteps->{$_} } 
+        sort 
+        grep   /^profileStep\d\d?$/, 
+               keys %$profileSteps;
+      
+    foreach my $categoryId ( @categories ) {
+        $self->processCategoryDataFromFormPost( $categoryId );
+        $self->session->errorHandler->warn( "{{{{$categoryId}}}" );
+    }
+}
 
 #-------------------------------------------------------------------
 sub view {
     my $self = shift;
-
-    return $self->www_getProfileCategoryData;
-}
-
-
-#-------------------------------------------------------------------
-sub www_getProfileCategoryData {
-    my $self    = shift;
-    my $error   = shift || [];
-
 
     my $profileOverrides    = $self->get('profileOverrides');
     my $profileSteps        = $self->get('profileSteps');
@@ -275,87 +356,11 @@ sub www_getProfileCategoryData {
         . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $self->registrationId  } )
         . WebGUI::Form::hidden($self->session, { name => 'categoryId',  value => $categoryId                } );
     $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
-    $var->{ error_loop      } = [ map { {error_message => $_} } @$error ];
+    $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
 
     my $template = WebGUI::Asset::Template->new( $self->session, $self->getRegistration->get('stepTemplateId') );
     return $template->process($var);
 }
 
-#-------------------------------------------------------------------
-sub www_getProfileCategoryDataSave {
-    my $self    = shift;
-    my $session = $self->session;
-
-    # Check priviledges
-##    return $self->www_setupSite unless $self->canSetupSite;
-    
-    # Fetch the profile step and override data
-    my $profileSteps     = $self->get('profileSteps');
-    my $profileOverrides = $self->get('profileOverrides');
-
-    # Figure out the current step. We don't use the scratch var because that doesn't protect against reloads.
-    # Doing it this way the order is still enforced.
-    my $categoryId  = $self->session->form->process('categoryId');
-    my $currentStep = { reverse %$profileSteps }->{$categoryId};           # switch keys/values to do reverse lookup.
-    $currentStep    =~ s{^profileStep(\d+)$}{$1};
-
-    my $completedProfileCategories = $self->getConfigurationData->{ completedProfileCategories } || {};
-    delete $completedProfileCategories->{ $categoryId };
-
-    my @error;
-    # Process category data
-    my $category = WebGUI::ProfileCategory->new($self->session, $categoryId);
-    
-    foreach my $field (@{ $category->getFields }) {
-        next unless $field->get('visible');
-
-        my $profileFieldData = $field->formProcess;
-
-        # Check for required fields.
-        if ($profileOverrides->{ $field->getId }->{ required } && !$profileFieldData) {
-            push (@error, $field->getLabel.' is verplicht');
-        }
-        else {
-            # TODO: Wellicht ook iets doen als: error if (form->param('field') && !$profileFieldData)
-            # TODO: Check if arrays are saved correctly
-            $session->user->profileField($field->getId, $profileFieldData);
-        }
-    }
-   
-    # Return form with error messages
-    if (@error) {
-        # Make sure this category is not marked as complete.
-        delete $completedProfileCategories->{ $categoryId };
-        $self->setConfigurationData('completedProfileCategories' => $completedProfileCategories );
-
-        ### Hoe gaan we de erreurs terugkoppelen...
-        return $self->www_getProfileCategoryData(\@error);
-    } else {
-        # Mark this category as completed.
-        $completedProfileCategories->{ $categoryId } = 1;
-        $self->setConfigurationData('completedProfileCategories' => $completedProfileCategories );
-    }
-
-    # Data correct so proceed with next step
-    my $nextStep = $currentStep + 1;
-
-#### Dit moet worden verplaatst naar de logica in Reg.
-    # Are we editing a complete profile? If so return to the confirmation page
-##    return $self->www_confirmProfileData if $self->session->scratch->get('profileComplete');
-    
-    # Last step? Proceed with medical import data
-    unless (exists $profileSteps->{"profileStep$nextStep"}) {
-        $self->session->scratch->delete('currentProfileStep');
-
-#        return $self->www_collectMedicalEncyclopediaImportCategories;
-    }
-
-    # Else proceed with next step
-    $self->session->scratch->set('currentProfileStep', $nextStep);
-    $self->session->scratch->set('currentCategoryId', $profileSteps->{"profileStep$nextStep"});
-#    return $self->www_getProfileCategoryData([], $profileSteps->{"profileStep$nextStep"});
-}
-
 1;
-
 

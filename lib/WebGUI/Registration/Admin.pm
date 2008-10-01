@@ -1,6 +1,10 @@
 package WebGUI::Registration::Admin;
 
 use strict;
+use WebGUI::Registration;
+
+use WebGUI::AdminConsole;
+
 
 #-------------------------------------------------------------------
 sub www_addRegistration {
@@ -26,7 +30,7 @@ sub www_listPendingRegistrations {
         $registrationId,
     ]);
 
-    my $output = '<h1>Accounts waiting for approval</h1>';
+    my $output ; #= '<h1>Accounts waiting for approval</h1>';
     $output .= '<table>';
     foreach (@userIds) {
         my $user = WebGUI::User->new($session, $_);
@@ -40,12 +44,13 @@ sub www_listPendingRegistrations {
     }
     $output .= '</table>';
 
-    return $output;
+    return WebGUI::AdminConsole->new( $session )->render( $output, 'Pending accounts' );
 }
 
 #-------------------------------------------------------------------
 sub www_editRegistrationInstanceData {
     my $session = shift;
+    my $error   = shift || [];
 
     my $registrationId  = $session->form->process( 'registrationId' );
     my $userId          = $session->form->process( 'userId'         );
@@ -91,9 +96,40 @@ sub www_editRegistrationInstanceData {
 
     $f->submit;
 
-    return $f->print;
+    my $output;
 
+    $output .= 'Errors: <ul><li>'. join( '</li><li>', @$error ) . '</li></ul>' if @$error;
+    $output .= $f->print;
+
+    return WebGUI::AdminConsole->new( $session )->render( $output, 'Approve account' );
 }
+
+#-------------------------------------------------------------------
+sub www_editRegistrationInstanceDataSave {
+    my $session = shift;
+
+    my $registrationId  = $session->form->process( 'registrationId' );
+    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $registrationId );
+
+    my @error;
+    # Process and error check submitted form data.
+    foreach my $step ( @{ $steps } ) {
+        $step->processStepApprovalData;    
+$session->errorHandler->warn('--[['.join(',', @{ $step->error }).']]--');
+        push @error, @{ $step->error };
+    }
+
+    # Return to edit screen with errors if an error occurred.
+    return www_editRegistrationInstanceData( $session, \@error ) if @error;
+
+    # No errors occurred, so apply the registration steps.
+    foreach my $step ( @{ $steps } ) {
+#        $step->apply;
+    }
+
+    return "OK!";
+}
+
 #-------------------------------------------------------------------
 sub www_view {
     my $session = shift;

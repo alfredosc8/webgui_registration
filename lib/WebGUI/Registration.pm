@@ -572,7 +572,8 @@ sub www_do {
 
 #-------------------------------------------------------------------
 sub www_viewStep {
-    my $self = shift;
+    my $self    = shift;
+    my $session = $self->session;
 
     my $output;
 
@@ -587,7 +588,18 @@ sub www_viewStep {
     }
     else {
         # Completed last step succesfully.
-            
+
+        # Check if is being edited. This is place here so that editing a step is only possible when all steps are
+        # complete. This prevents users from taking steps in the wrong order.
+        my $stepId = $session->form->process('stepId');
+
+        if ( $stepId ) {
+            #### TODO: Catch exceptions
+            my $step = WebGUI::Registration::Step->getStep( $session, $stepId);
+
+            return $step->www_view if $step;
+        }
+        
         #### TODO: Dubbelchecken of alle stappen zijn gecomplete.
         $output = $self->www_confirmRegistrationData;
     }
@@ -605,11 +617,12 @@ sub www_viewStepSave {
     return $self->www_viewStep unless $currentStep;
 
     $currentStep->processStepFormData;
+$self->session->errorHandler->warn(']]]]]]');
 
-#    if ( $currentStep->isComplete ) {
-#        my $nextStep = $self->completeStep( $currentStep->stepId );
-#    }
-
+    # Return the step screen if an error occurred during processing.
+    return $currentStep->www_view if (@{ $currentStep->error });
+$self->session->errorHandler->warn('[[[[[[');
+    # Otherwise proceed.
     return $self->www_viewStep;
 }
 

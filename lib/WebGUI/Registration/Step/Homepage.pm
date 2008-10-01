@@ -148,7 +148,7 @@ sub installUserPage {
         # Figure out the root url of the deployed package.
         my $deployedPackageRootUrl = 
                $session->form->process('rootUrlOverride') 
-            || '/'.$user->profileField('firstName').$user->profileField('middleName').$user->profileField('lastName');
+            || '/' . $user->profileField('firstName') . $user->profileField('middleName') . $user->profileField('lastName');
             
         # Deploy package under userPageRoot
 		my $deployedTreeMaster = $packageMasterAsset->duplicateBranch;
@@ -197,27 +197,18 @@ sub isComplete {
 #-------------------------------------------------------------------
 sub processStepFormData {
     my $self = shift;
-    
-##    # Check priviledges
-##    return $self->www_setupSite unless $self->canSetupSite;
+
+    #### TODO: privs ??????
 
     # Store homepage url
     $self->setConfigurationData('preferredHomepageUrl', $self->session->form->process('preferredHomepageUrl') );
-   
-##    # Are we editing a complete profile? If so return to the confirmation page
-##    return $self->www_confirmProfileData if $self->session->scratch->get('profileComplete');
-   
-##    # Else proceed with the next step;
-##    return $self->www_confirmProfileData;
 }
 
 #-------------------------------------------------------------------
 sub view {
     my $self = shift;
 
-##    # Check priviledges
-##    return $self->www_setupSite unless $self->canSetupSite;
-    
+    #### TODO: privs
     my $preferredHomepageUrl = 
         $self->session->form->process('preferredHomepageUrl')  
         || $self->getConfigurationData->{'preferredHomepageUrl'};
