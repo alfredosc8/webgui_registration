@@ -10,7 +10,7 @@ use Data::Dumper;
 readonly session        => my %session;
 readonly stepId         => my %stepId;
 readonly options        => my %options;
-readonly registrationId => my %registrationId;
+readonly registration   => my %registration;
 readonly error          => my %error;
 
 #-------------------------------------------------------------------
@@ -18,7 +18,7 @@ sub _buildObj {
     my $class           = shift;
     my $session         = shift;
     my $stepId          = shift;
-    my $registrationId  = shift;
+    my $registration    = shift;
     my $options         = shift || {};
     my $self            = {};
 
@@ -29,7 +29,7 @@ sub _buildObj {
     $session        { $id } = $session;
     $stepId         { $id } = $stepId;
     $options        { $id } = $options;
-    $registrationId { $id } = $registrationId;
+    $registration   { $id } = $registration;
     $error          { $id } = [];
 
     return $self;
@@ -68,7 +68,7 @@ sub create {
         ]
     );
 
-    my $self = _buildObj( $class, $session, $stepId, $registration->registrationId );
+    my $self = _buildObj( $class, $session, $stepId, $registration );
 
     return $self;
 }
@@ -110,7 +110,7 @@ sub get {
 #-------------------------------------------------------------------
 sub getConfigurationData {
     my $self    = shift;
-    my $userId  = shift || $self->getRegistration->getCurrentUserId;
+    my $userId  = shift || $self->registration->user->userId;
 
     my $configurationData = $self->session->db->quickScalar(
         'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
@@ -144,23 +144,11 @@ sub getEditForm {
     );
     $f->hidden(
         -name   => 'registrationId',
-        -value  => $self->registrationId,
+        -value  => $self->registration->registrationId,
     );
     $f->dynamicForm( $self->definition( $session ), 'properties', $self );
 
     return $f;
-}
-
-#-------------------------------------------------------------------
-sub getRegistration {
-    my $self = shift;
-    
-    my $registration = WebGUI::Pluggable::instanciate( 'WebGUI::Registration', 'new', [
-        $self->session,
-        $self->registrationId,
-    ]);
-    
-    return $registration;
 }
 
 #-------------------------------------------------------------------
@@ -178,17 +166,18 @@ sub getStepForm {
     );
     $f->hidden(
         -name   => 'registrationId',
-        -value  => $self->registrationId,
+        -value  => $self->registration->registrationId,
     );
 
     return $f;
 }
 
 #-------------------------------------------------------------------
-sub getStep {
-    my $class       = shift;
-    my $session     = shift;
-    my $stepId      = shift;
+sub newByDynamicClassname {
+    my $class           = shift;
+    my $session         = shift;
+    my $stepId          = shift;
+    my $registration    = shift;
 
     # Figure out namespace of step
     my $namespace   = $session->db->quickScalar( 'select namespace from RegistrationStep where stepId=?', [
@@ -199,37 +188,12 @@ sub getStep {
     my $step        = WebGUI::Pluggable::instanciate( $namespace, 'new', [
         $session,
         $stepId,
+        $registration,
     ]);
 
     return $step;
 }
 
-#-------------------------------------------------------------------
-sub getStepsForRegistration {
-    my $class           = shift;
-    my $session         = shift;
-    my $registrationId  = shift;
-    my @steps;
-
-    #### TODO: Hier getStep gebruiken.
-    my $sth = $session->db->read( 
-        'select stepId, namespace from RegistrationStep where registrationId=? order by stepOrder',
-        [
-            $registrationId,
-        ]
-    );
-
-    while (my $row = $sth->hashRef) {
-        my $step = WebGUI::Pluggable::instanciate( $row->{ namespace }, 'new', [
-            $session,
-            $row->{ stepId },
-        ]);
-
-        push @steps, $step;
-    }
-
-    return \@steps;
-}
 
 #-------------------------------------------------------------------
 sub getSummaryTemplateVars {
@@ -243,15 +207,16 @@ sub isComplete {
 
 #-------------------------------------------------------------------
 sub new {
-    my $class   = shift;
-    my $session = shift;
-    my $stepId  = shift;
+    my $class           = shift;
+    my $session         = shift;
+    my $stepId          = shift;
+    my $registration    = shift;
     
     my $properties  = $session->db->quickHashRef( 'select * from RegistrationStep where stepId=?', [
         $stepId,
     ]);
 
-    my $self = $class->_buildObj( $session, $stepId, $properties->{ registrationId }, decode_json( $properties->{ options } ) );
+    my $self = $class->_buildObj( $session, $stepId, $registration, decode_json( $properties->{ options } ) );
 
     return $self;
 }
@@ -300,7 +265,7 @@ sub processStyle {
     my $content = shift;
 
 #### TODO: deze method verwijderen. en WG::Reg::processStyle gebruiken.
-    return $self->getRegistration->processStyle( $content );
+    return $self->registration->processStyle( $content );
 }
 
 #-------------------------------------------------------------------
@@ -321,7 +286,7 @@ sub setConfigurationData {
     my $self    = shift;
     my $key     = shift;
     my $value   = shift;
-    my $userId  = shift || $self->getRegistration->getCurrentUserId;
+    my $userId  = shift || $self->registration->user->userId;
 
     my $configurationData = $self->getConfigurationData;
     $configurationData->{ $key } = $value;

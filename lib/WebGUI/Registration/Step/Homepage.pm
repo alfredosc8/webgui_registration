@@ -94,7 +94,7 @@ sub getSummaryTemplateVars {
         field_loop          => \@fields, 
         category_label      => $self->get('title'),
         category_edit_url   =>
-            $self->session->url->page('registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registrationId),
+            $self->session->url->page('registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registration->registrationId),
     };
 
     return ( $var );    
@@ -105,7 +105,7 @@ sub installUserPage {
     my $self        = shift;
     my $parameters  = shift;
 
-    my $user        = $self->getRegistration->getCurrentUser;
+    my $user        = $self->registration->user;
     my $session     = $self->session;
     my $i18n        = WebGUI::International->new($session, 'MijnArts');
 
@@ -216,7 +216,9 @@ sub processStepFormData {
 sub view {
     my $self = shift;
 
+
     #### TODO: privs
+    my $registrationId = $self->registration->registrationId;
     my $preferredHomepageUrl = 
         $self->session->form->process('preferredHomepageUrl')  
         || $self->getConfigurationData->{'preferredHomepageUrl'};
@@ -232,7 +234,7 @@ sub view {
     );
     $f->hidden(
         -name   => 'registrationId',
-        -value  => $self->registrationId,
+        -value  => $registrationId,
     );
     $f->text(
         -name   => 'preferredHomepageUrl',
@@ -249,7 +251,7 @@ sub view {
         WebGUI::Form::formHeader($self->session)
         . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
         . WebGUI::Form::hidden($self->session, { name => 'registration',    value => 'register'             } ) 
-        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $self->registrationId  } );
+        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $registrationId        } );
 
     $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
     $var->{ field_loop      } = 
@@ -265,7 +267,7 @@ sub view {
             }
         ];
 
-    my $template = WebGUI::Asset::Template->new( $self->session, $self->getRegistration->get('stepTemplateId') );
+    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
     return $template->process($var);
 }
 

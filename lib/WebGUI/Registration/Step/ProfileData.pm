@@ -106,8 +106,7 @@ sub getEditForm {
 sub getSummaryTemplateVars {
     my $self            = shift;
     my $session         = $self->session;
-#### TODO: user niet meer uit form post halen.
-    my $user            = WebGUI::User->new( $session, $session->form->process('userId') || $self->getRegistration->getCurrentUserId);
+    my $user            = shift || $self->registration->user->userId;
     my @categoryLoop    = ();
 
     # Get entered profile data
@@ -170,6 +169,7 @@ Returns an array ref containing error messages, if errors occurred.
 sub processCategoryDataFromFormPost {
     my $self        = shift;
     my $categoryId  = shift;
+    my $user        = shift || $self->registration->user;
     my $session     = $self->session;
 
     #### TODO: Throw exception on categoryId.
@@ -183,7 +183,6 @@ sub processCategoryDataFromFormPost {
         next unless $field->get('visible');
 
         my $profileFieldData = $field->formProcess;
-$session->errorHandler->warn("[".$field->getLabel."][".$profileFieldData."]");
 
         # Check for required fields.
         if ($profileOverrides->{ $field->getId }->{ required } && !$profileFieldData) {
@@ -293,6 +292,7 @@ sub processStepApprovalData {
 sub view {
     my $self = shift;
 
+    my $registrationId      = $self->registration->registrationId;
     my $profileOverrides    = $self->get('profileOverrides');
     my $profileSteps        = $self->get('profileSteps');
     my $categoryId          = $self->session->scratch->get('currentCategoryId') 
@@ -315,7 +315,7 @@ sub view {
     );
     $f->hidden(
         -name   => 'registrationId',
-        -value  => $self->registrationId,
+        -value  => $registrationId,
     );
     $f->hidden(
         -name   => 'categoryId',
@@ -353,12 +353,12 @@ sub view {
         WebGUI::Form::formHeader($self->session)
         . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
         . WebGUI::Form::hidden($self->session, { name => 'registration',    value => 'register'             } ) 
-        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $self->registrationId  } )
+        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $registrationId        } )
         . WebGUI::Form::hidden($self->session, { name => 'categoryId',  value => $categoryId                } );
     $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
     $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
 
-    my $template = WebGUI::Asset::Template->new( $self->session, $self->getRegistration->get('stepTemplateId') );
+    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
     return $template->process($var);
 }
 

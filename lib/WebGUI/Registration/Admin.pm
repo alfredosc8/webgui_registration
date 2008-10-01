@@ -55,8 +55,8 @@ sub www_editRegistrationInstanceData {
     my $registrationId  = $session->form->process( 'registrationId' );
     my $userId          = $session->form->process( 'userId'         );
 
-#    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $registrationId );
+    my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
+    my $steps           = $registration->getSteps;
     my $user            = WebGUI::User->new( $session, $userId );
 
     my $f = WebGUI::HTMLForm->new( $session );
@@ -109,7 +109,9 @@ sub www_editRegistrationInstanceDataSave {
     my $session = shift;
 
     my $registrationId  = $session->form->process( 'registrationId' );
-    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $registrationId );
+    my $userId          = $session->form->process( 'userId'         );
+    my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
+    my $steps           = $registration->getSteps;
 
     my @error;
     # Process and error check submitted form data.

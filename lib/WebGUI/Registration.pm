@@ -14,6 +14,7 @@ readonly session            => my %session;
 readonly registrationId     => my %registrationId;
 readonly registrationSteps  => my %registrationSteps;
 readonly options            => my %options;
+readonly user               => my %user;
 
 sub definition {
     my $class       = shift;
@@ -66,6 +67,7 @@ sub _buildObj {
     my $session         = shift;
     my $registrationId  = shift;
     my $options         = shift || { };
+    my $userId          = shift || $session->user->userId,
     my $self            = { };
 
     # --- Fetch registration steps from db ----------------------
@@ -78,23 +80,8 @@ sub _buildObj {
         ]
     );
 
-#    my $registrationSteps = [ 
-#        { stepId => 'ab001', namespace => 'WebGUI::Registration::Step::StepOne'  },
-#        { stepId => 'ab002', namespace => 'WebGUI::Registration::Step::StepTwo'  },
-#    ];
-
-#    # Get the completed steps for the current user session
-#    my $completedStepsJSON  = $session->scratch->get('registration_completedSteps') || '{ }';  #'{ "ab002" : "1" }';
-#    my $completedSteps      = decode_json( $completedStepsJSON );
-#
-#    # And apply those complete statuses to the steps in this Registration
-#    for my $step (@{ $registrationSteps }) {
-#        $step->{ complete } = exists $completedSteps->{ $step->{stepId} } 
-#                            ? 1 
-#                            : 0 
-#                            ;
-#    }
-
+    # TODO: Check whether userId exists.
+    my $user = WebGUI::User->new( $session, $userId );
 
     # --- Setup InsideOut object --------------------------------
     bless       $self, $class;
@@ -105,6 +92,7 @@ sub _buildObj {
     $registrationId     { $id } = $registrationId;
     $registrationSteps  { $id } = $registrationSteps;
     $options            { $id } = $options;
+    $user               { $id } = $user;
 
     return $self;
 }
@@ -119,34 +107,9 @@ sub create {
         $id,
     ] );
 
-    $session->errorHandler->warn("{{$id}}");
     return $class->new( $session, $id );
 }
     
-
-##-------------------------------------------------------------------
-#sub completeStep {
-#    my $self    = shift;
-#    my $stepId  = shift;
-#
-#    #### TODO: Checken of de accessors gegenereerd door C::IO de values kopieren of niet.
-#    my ($step) = grep { $_->{ stepId } eq $stepId } @{ $self->registrationSteps } ;
-#    $step->{ complete } = 1;
-#
-#    # Update completed steps tracker
-#    $self->session->scratch->set( 'registration_completedSteps',
-#        encode_json( { 
-#            map     { $_->{ stepId   } => 1     } 
-#            grep    { $_->{ complete }          } 
-#                   @{ $self->registrationSteps }
-#        } )
-#    );
-#   
-#    $self->session->errorHandler->warn( 'CS: '. $self->session->scratch->get( 'registration_completedSteps' ) );
-#    # Since we've just completed this step getCurrentStep will return the next.
-#    return $self->getCurrentStep;
-#}
-
 #-------------------------------------------------------------------
 sub getCurrentStep {
     my $self    = shift;
@@ -157,7 +120,7 @@ sub getCurrentStep {
     # Find first incomplete step and return it
     foreach my $stepId ( map { $_->{stepId} } @{ $registrationSteps } ) {
         # TODO: Catch exception.
-        my $step = WebGUI::Registration::Step->getStep( $session, $stepId );
+        my $step = $self->getStep( $stepId );
 
         return $step unless $step->isComplete;
     }
@@ -177,18 +140,11 @@ sub get {
         }
         else {
             #### TODO: throw exception.
-            die "Unknown key in Registration->get";
+            die "Unknown key in Registration->get [$key]";
         }
     }
 
     return { %{ $self->options } };
-}
-
-#-------------------------------------------------------------------
-sub getCurrentUserId {
-    my $self    = shift;
-
-    return $self->session->user->userId;
 }
 
 #-------------------------------------------------------------------
@@ -224,7 +180,7 @@ sub getRegistrationStatus {
         'select status from Registration_status where registrationId=? and userId=?', 
         [
             $self->registrationId,
-            $self->getCurrentUserId,
+            $self->user->userId,
         ]
     );
 
@@ -232,16 +188,48 @@ sub getRegistrationStatus {
 }
 
 #-------------------------------------------------------------------
+sub getStep {
+    my $self    = shift;
+    my $stepId  = shift;
+
+    my $step    = WebGUI::Registration::Step->newByDynamicClassname( $self->session, $stepId, $self );
+
+    return $step;
+}
+
+#-------------------------------------------------------------------
+sub getSteps {
+    my $self    = shift;
+    
+    my @steps;
+    my @stepIds = $self->session->db->buildArray(
+        'select stepId from RegistrationStep where registrationId=? order by stepOrder',
+        [
+            $self->registrationId,
+        ]
+    );
+
+    foreach my $stepId (@stepIds) {
+        my $step = $self->getStep( $stepId );
+        push @steps, $step;
+    }
+
+    return \@steps;
+}
+
+
+#-------------------------------------------------------------------
 sub new {
     my $class           = shift;
     my $session         = shift;
     my $registrationId  = shift || die "No regid";
+    my $userId          = shift || $session->user->userId;
 
     my $options = $session->db->quickHashRef( 'select * from Registration where registrationId=?', [
         $registrationId,
     ]);
 
-    my $self = $class->_buildObj( $session, $registrationId, $options );
+    my $self = $class->_buildObj( $session, $registrationId, $options, $userId );
     return $self;
 
 #   bless { _steps => $registrationSteps, _session => $session }, $class;
@@ -330,12 +318,12 @@ sub setRegistrationStatus {
     # Write the status to the db
     $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
         $self->registrationId,
-        $self->getCurrentUserId,
+        $self->user->userId,
     ]);
     $session->db->write('insert into Registration_status (status, registrationId, userId) values (?,?,?)', [
         $status,
         $self->registrationId,
-        $self->getCurrentUserId,
+        $self->user->userId,
     ]);
 }
 
@@ -404,7 +392,7 @@ sub www_confirmRegistrationData {
     my $self    = shift;
     my $session = $self->session;
     
-    my $steps           = WebGUI::Registration::Step->getStepsForRegistration( $session, $self->registrationId );
+    my $steps           = $self->getSteps;
     my @categoryLoop    = ();
 
     foreach my $step ( @{ $steps } ) {
@@ -458,7 +446,7 @@ sub www_listSteps {
 #    );
 #    my @steps = map { WebGUI::Registration::Step->newByDynamicClass( $session, $_ ) } @stepIds;
 
-    my $steps = WebGUI::Registration::Step->getStepsForRegistration( $session, $self->registrationId );
+    my $steps = $self->getSteps;
 
     my $output = '<ul>';
     foreach my $step ( @{ $steps } ) {
