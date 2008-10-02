@@ -429,14 +429,6 @@ sub www_listSteps {
     my $self    = shift;
     my $session = $self->session;
 
-#    my @stepIds = $self->session->db->buildArray( 
-#        'select stepId from RegistrationStep where registrationId=? order by stepOrder', 
-#        [
-#            $self->registrationId,
-#        ]
-#    );
-#    my @steps = map { WebGUI::Registration::Step->newByDynamicClass( $session, $_ ) } @stepIds;
-
     my $steps = $self->getSteps;
 
     my $output = '<ul>';
@@ -507,7 +499,7 @@ sub www_editStep {
     my $session = $self->session;
 
     my $stepId  = $session->form->process('stepId');
-    my $step    = WebGUI::Registration::Step->getStep( $session, $stepId );
+    my $step    = $self->getStep( $stepId );
 
     return $step->www_edit;
 }
@@ -519,7 +511,7 @@ sub www_editStepSave {
     my $session = $self->session;
 
     my $stepId  = $session->form->process('stepId');
-    my $step    = WebGUI::Registration::Step->getStep( $session, $stepId );
+    my $step    = $self->getStep( $stepId );
 
     $step->processPropertiesFromFormPost;
 
@@ -574,7 +566,7 @@ sub www_viewStep {
 
         if ( $stepId ) {
             #### TODO: Catch exceptions
-            my $step = WebGUI::Registration::Step->getStep( $session, $stepId);
+            my $step = $self->getStep( $stepId );
 
             return $step->www_view if $step;
         }
