@@ -82,7 +82,7 @@ sub www_editRegistrationInstanceData {
     );
 
     foreach my $step ( @{ $steps } ) {
-        foreach my $category ( $step->getSummaryTemplateVars(1) ) {
+        foreach my $category ( $step->getSummaryTemplateVars ) {
             $f->fieldSetStart( $category->{ category_label } );
             foreach my $field ( @{ $category->{ field_loop } } ) {
                 $f->readOnly(

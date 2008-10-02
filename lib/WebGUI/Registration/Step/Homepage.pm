@@ -199,8 +199,8 @@ sub processStepFormData {
     my $self    = shift;
     my $session = $self->session;
 
-    #### TODO: privs ??????
     my $url     = $session->form->process('preferredHomepageUrl');
+$self->session->errorHandler->warn("{{{{{{{{$url}}}}}}}}}}}");   
     unless ( $url ) {
         $self->pushError( "De url is verplicht." );
     }
@@ -216,8 +216,6 @@ sub processStepFormData {
 sub view {
     my $self = shift;
 
-
-    #### TODO: privs
     my $registrationId = $self->registration->registrationId;
     my $preferredHomepageUrl = 
         $self->session->form->process('preferredHomepageUrl')  
