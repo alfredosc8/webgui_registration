@@ -471,6 +471,7 @@ sub www_listSteps {
         'WebGUI::Registration::Step::StepTwo'       => 'StepTwo',
         'WebGUI::Registration::Step::ProfileData'   => 'ProfileData',
         'WebGUI::Registration::Step::Homepage'      => 'Homepage',
+        'WebGUI::Registration::Step::UserGroup'     => 'UserGroup',
     };
     my $addForm = 
           WebGUI::Form::formHeader( $session )
