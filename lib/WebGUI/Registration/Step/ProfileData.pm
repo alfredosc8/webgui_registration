@@ -106,7 +106,7 @@ sub getEditForm {
 sub getSummaryTemplateVars {
     my $self            = shift;
     my $session         = $self->session;
-    my $user            = shift || $self->registration->user;
+    my $user            = $self->registration->user;
 
     my @categoryLoop    = ();
 

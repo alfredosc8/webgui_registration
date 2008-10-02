@@ -22,19 +22,19 @@ sub definition {
 
     tie my %fields, 'Tie::IxHash', (
         userPageContainer       => {
-            fieldType           => 'asset',
-            tab                 => 'properties',
-            label               => $i18n->echo('Put user pages on'),
+            fieldType       => 'asset',
+            tab             => 'properties',
+            label           => $i18n->echo('Put user pages on'),
         },
         packageContainer        => {
-            fieldType           => 'asset',
-            tab                 => 'properties',
-            label               => $i18n->echo('Fetch packages from'),
+            fieldType       => 'asset',
+            tab             => 'properties',
+            label           => $i18n->echo('Fetch packages from'),
         },
         makeUserPageOwner       => {
-            fieldType           => 'yesNo',
-            tab                 => 'properties',
-            label               => $i18n->echo('Make user owner of his pages'),
+            fieldType       => 'yesNo',
+            tab             => 'properties',
+            label           => $i18n->echo('Make user owner of his pages'),
         },
         urlStorageField         => {
             fieldType       => 'selectBox',
@@ -73,7 +73,7 @@ sub getSummaryTemplateVars {
     push @fields, {
         field_label         => 'Your homepage',
         field_value         => $preferredHomepageUrl,
-        field_formElement   => WebGUI::Form::text( $session, { 
+        field_formElement   => WebGUI::Form::text( $session,  {
             name    => 'preferredHomepageUrl', 
             value   => $preferredHomepageUrl,
         }),
@@ -81,10 +81,10 @@ sub getSummaryTemplateVars {
     # Package to deploy
     push @fields, {
         field_label         => 'Choose package',
-        field_value         => $session->form->process('packageId'),
-        field_formElement   => WebGUI::Form::selectBox( $session, {
+        field_value         => $session->form->process('packageId') || '',
+        field_formElement   => WebGUI::Form::selectBox( $session, { 
             name    => 'packageId',
-            value   => $session->form->process('packageId'),
+            value   => [ $session->form->process('packageId') ],
             options => \%packageList,
         }),
     } if $includeAdminControls;
