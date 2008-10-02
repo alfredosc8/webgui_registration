@@ -6,7 +6,11 @@ use base qw{ WebGUI::Registration::Step };
 
 #-------------------------------------------------------------------
 sub apply {
+    my $self = shift;
 
+    $self->installUserPage({
+        packageId   => $self->session->form->process('packageId')
+    });
 }
 
 #-------------------------------------------------------------------

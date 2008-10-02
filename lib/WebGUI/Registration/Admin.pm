@@ -126,7 +126,7 @@ sub www_editRegistrationInstanceDataSave {
 
     # No errors occurred, so apply the registration steps.
     foreach my $step ( @{ $steps } ) {
-#        $step->apply;
+        $step->apply;
     }
 
     return "OK!";
