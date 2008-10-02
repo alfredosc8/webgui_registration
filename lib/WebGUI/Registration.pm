@@ -466,13 +466,17 @@ sub www_listSteps {
             . '</a></li>';       
     }
 
-    my $availableSteps = {
-        'WebGUI::Registration::Step::StepOne'       => 'StepOne',
-        'WebGUI::Registration::Step::StepTwo'       => 'StepTwo',
-        'WebGUI::Registration::Step::ProfileData'   => 'ProfileData',
-        'WebGUI::Registration::Step::Homepage'      => 'Homepage',
-        'WebGUI::Registration::Step::UserGroup'     => 'UserGroup',
-    };
+    my $availableSteps = { map {$_ => $_} @{ $session->config->get('registrationSteps') } };
+    
+#    {
+#        'WebGUI::Registration::Step::StepOne'       => 'StepOne',
+#        'WebGUI::Registration::Step::StepTwo'       => 'StepTwo',
+#        'WebGUI::Registration::Step::ProfileData'   => 'ProfileData',
+#        'WebGUI::Registration::Step::Homepage'      => 'Homepage',
+#        'WebGUI::Registration::Step::UserGroup'     => 'UserGroup',
+#    };
+
+
     my $addForm = 
           WebGUI::Form::formHeader( $session )
         . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'            } )
