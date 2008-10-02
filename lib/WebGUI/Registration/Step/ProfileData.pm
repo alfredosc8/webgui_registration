@@ -292,7 +292,7 @@ sub processStepApprovalData {
 #-------------------------------------------------------------------
 sub view {
     my $self    = shift;
-    my $user    = shift || $self->registration->user->user;
+    my $user    = shift || $self->registration->user;
 
     my $registrationId      = $self->registration->registrationId;
     my $profileOverrides    = $self->get('profileOverrides');
