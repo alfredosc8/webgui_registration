@@ -310,7 +310,10 @@ sub processPropertiesFromFormPost {
         $self->session->setting->add( 'registrationUrlTriggers', '{}' );
     }
 
-    # Add the url to the setting
+    # Remove the current url from the url trigger setting
+    delete $urlTriggers->{ $self->get('url') };
+
+    # And add the new url to the setting
     $urlTriggers->{ $data->{ url } }  = $self->registrationId;
     $self->session->setting->set( 'registrationUrlTriggers', encode_json( $urlTriggers ) );
 }
