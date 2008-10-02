@@ -7,12 +7,32 @@ use WebGUI::AdminConsole;
 
 
 #-------------------------------------------------------------------
+sub adminConsole {
+    my $session = shift;
+    my $content = shift;
+    my $title   = shift;
+
+    return WebGUI::AdminConsole->new( $session )->render( $content, $title );
+}
+
+#-------------------------------------------------------------------
 sub www_addRegistration {
     my $session = shift;
 
     my $registration    = WebGUI::Registration->create( $session );
 
     return $registration->www_edit;
+}
+
+#-------------------------------------------------------------------
+sub www_deleteRegistration {
+    my $session = shift;
+
+    my $registrationId  = $session->form->process('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+    $registration->delete;
+
+    return www_view( $session );
 }
 
 #-------------------------------------------------------------------
@@ -44,7 +64,7 @@ sub www_listPendingRegistrations {
     }
     $output .= '</table>';
 
-    return WebGUI::AdminConsole->new( $session )->render( $output, 'Pending accounts' );
+    return adminConsole( $session, $output, 'Pending accounts' );
 }
 
 #-------------------------------------------------------------------
@@ -101,7 +121,7 @@ sub www_editRegistrationInstanceData {
     $output .= 'Errors: <ul><li>'. join( '</li><li>', @$error ) . '</li></ul>' if @$error;
     $output .= $f->print;
 
-    return WebGUI::AdminConsole->new( $session )->render( $output, 'Approve account' );
+    return adminConsole( $session, $output, 'Approve account' );
 }
 
 #-------------------------------------------------------------------
@@ -140,9 +160,13 @@ sub www_view {
 
     my $output = '<ul>';
     foreach my $id ( @registrationIds ) {
-        $session->errorHandler->warn("[$id]");
         my $registration    = WebGUI::Registration->new( $session, $id );
 
+        my $deleteButton = $session->icon->delete(
+            "registration=admin;func=deleteRegistration;registrationId=$id",
+            undef,
+            'Weet u zeker dat u deze registratie wil verwijderen?',
+        );
         my $editButton =
               WebGUI::Form::formHeader( $session )
             . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'    } )
@@ -165,13 +189,13 @@ sub www_view {
             . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts' } )
             . WebGUI::Form::formFooter( $session );
             
-        $output .= "<li>$editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';
+        $output .= "<li>$deleteButton $editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';
     }
 
     $output .= '<li><a href="'.$session->url->page('registration=admin;func=addRegistration').'">NEW REG</a>';
     $output .= '</li></ul>';
 
-    return $output;
+    return adminConsole( $session, $output, 'Manage Registrations' );
 }
 
 1;

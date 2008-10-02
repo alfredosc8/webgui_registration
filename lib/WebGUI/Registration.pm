@@ -109,7 +109,44 @@ sub create {
 
     return $class->new( $session, $id );
 }
-    
+
+#-------------------------------------------------------------------
+sub delete {
+    my $self    = shift;
+    my $db      = $self->session->db;
+
+    # Clean up RegistrationStep_accountData
+    $db->write(
+          ' delete from RegistrationStep_accountData'
+        . ' where stepId in (select stepId from RegistrationStep where registrationId=?)',
+        [
+            $self->registrationId,
+        ],
+    );
+
+    # Clean up RegistrationStep
+    $db->write( 'delete from RegistrationStep where registrationId=?', [
+        $self->registrationId,
+    ]);
+
+    # Clean up Registration_status
+    $db->write( 'delete from Registration_status where registrationId=?', [
+        $self->registrationId,
+    ]);
+
+    # Clean up Registration
+    $db->write( 'delete from Registration where registrationId=?', [
+        $self->registrationId,
+    ]);
+
+    my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
+    my $urlTriggers     = decode_json( $urlTriggersJSON );
+    delete $urlTriggers->{ $self->get('url') };
+    $self->session->setting->set('registrationUrlTriggers', encode_json( $urlTriggers ) );
+
+    $self->DESTROY;
+}
+
 #-------------------------------------------------------------------
 sub getCurrentStep {
     my $self    = shift;
@@ -255,25 +292,9 @@ sub processPropertiesFromFormPost {
         }
     }
 
-#    my $title                   = $form->process( 'title'           );
-#    my $url                     = $form->process( 'url'             );
-#    my $stepTemplateId          = $form->process( 'stepTemplateId'  );
-#    my $styleTemplateId         = $form->process( 'styleTemplateId' );
-#    my $confirmationTemplateId  = $form->process( 'confirmationTemplateId'  );
-#    my $registrationCompleteTemplateId = $form->process( 'registrationCompleteTemplateId' );
-
     #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
 
     $self->update( $data );
-
-#    $self->update({
-#        title                   => $title,
-#        url                     => $url,
-#        styleTemplateId         => $styleTemplateId,
-#        stepTemplateId          => $stepTemplateId,
-#        confirmationTemplateId  => $confirmationTemplateId,
-#        registrationCompleteTemplateId => $registrationCompleteTemplateId,
-#    });
 
     # Fetch the urlTriggers setting
     my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
