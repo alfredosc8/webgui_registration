@@ -192,7 +192,7 @@ sub processCategoryDataFromFormPost {
         else {
             # TODO: Wellicht ook iets doen als: error if (form->param('field') && !$profileFieldData)
             # TODO: Check if arrays are saved correctly
-            $session->user->profileField($field->getId, $profileFieldData);
+            $user->profileField($field->getId, $profileFieldData);
         }
     }
 }
@@ -285,7 +285,6 @@ sub processStepApprovalData {
       
     foreach my $categoryId ( @categories ) {
         $self->processCategoryDataFromFormPost( $categoryId );
-        $self->session->errorHandler->warn( "{{{{$categoryId}}}" );
     }
 }
 

@@ -200,7 +200,6 @@ sub processStepFormData {
     my $session = $self->session;
 
     my $url     = $session->form->process('preferredHomepageUrl');
-$self->session->errorHandler->warn("{{{{{{{{$url}}}}}}}}}}}");   
     unless ( $url ) {
         $self->pushError( "De url is verplicht." );
     }
@@ -208,6 +207,7 @@ $self->session->errorHandler->warn("{{{{{{{{$url}}}}}}}}}}}");
         $self->pushError( "De url $url is al bezet" );
     }
 
+    return if @{ $self->error };
     # Store homepage url
     $self->setConfigurationData('preferredHomepageUrl', $url );
 }
@@ -264,6 +264,7 @@ sub view {
 #                field_subtext   => 'Hier komt de subtext voor dit veld'
             }
         ];
+    $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
 
     my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
     return $template->process($var);
