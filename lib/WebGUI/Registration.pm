@@ -356,15 +356,6 @@ sub update {
 }
 
 #-------------------------------------------------------------------
-#sub session {
-#    my $self    = shift;
-#
-#
-#
-#    return $self->{_session};
-#}
-
-#-------------------------------------------------------------------
 sub www_addStep {
     my $self    = shift;
     my $session = $self->session;

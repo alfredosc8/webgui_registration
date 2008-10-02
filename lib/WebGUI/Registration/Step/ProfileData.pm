@@ -106,7 +106,8 @@ sub getEditForm {
 sub getSummaryTemplateVars {
     my $self            = shift;
     my $session         = $self->session;
-    my $user            = shift || $self->registration->user->userId;
+    my $user            = shift || $self->registration->user;
+
     my @categoryLoop    = ();
 
     # Get entered profile data
@@ -290,7 +291,8 @@ sub processStepApprovalData {
 
 #-------------------------------------------------------------------
 sub view {
-    my $self = shift;
+    my $self    = shift;
+    my $user    = shift || $self->registration->user->user;
 
     my $registrationId      = $self->registration->registrationId;
     my $profileOverrides    = $self->get('profileOverrides');
@@ -329,13 +331,13 @@ sub view {
 
         # Add form element to HTMLForm
         $f->raw(
-            $field->formField({}, 1),
+            $field->formField({}, 1, $user),
         );
 
         # Add form element to field loop
         push @fieldLoop, {
             field_label         => $field->getLabel,
-            field_formElement   => $field->formField,
+            field_formElement   => $field->formField( {}, 0, $user ),
             field_subtext       => $profileOverrides->{ $field->getId }->{ comment  },
             field_isRequired    => $profileOverrides->{ $field->getId }->{ required },
         }
