@@ -41,6 +41,15 @@ sub apply {
 }
 
 #-------------------------------------------------------------------
+sub changeStepDataUrl {
+    my $self    = shift;
+
+    return $self->session->url->page(
+        'registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registration->registrationId
+    );
+}
+
+#-------------------------------------------------------------------
 sub create {
     my $class           = shift;
     my $session         = shift;

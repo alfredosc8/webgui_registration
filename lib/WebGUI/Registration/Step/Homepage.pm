@@ -93,8 +93,7 @@ sub getSummaryTemplateVars {
     my $var = {
         field_loop          => \@fields, 
         category_label      => $self->get('title'),
-        category_edit_url   =>
-            $self->session->url->page('registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registration->registrationId),
+        category_edit_url   => $self->changeStepDataUrl,
     };
 
     return ( $var );    

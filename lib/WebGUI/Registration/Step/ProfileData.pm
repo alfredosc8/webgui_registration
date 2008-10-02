@@ -136,8 +136,7 @@ sub getSummaryTemplateVars {
             field_loop          => \@fields,
             category_label      => $category->getLabel,
             category_id         => $category->getId,
-#### TODO: URL goed maken.
-            category_edit_url   => $session->url->page('func=getProfileCategoryData;categoryId='.$category->getId),
+            category_edit_url   => $session->url->append( $self->changeStepDataUrl, 'categoryId='.$category->getId ),
         });
     }
 
