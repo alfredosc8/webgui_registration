@@ -44,16 +44,44 @@ sub definition {
             fieldType       => 'selectBox',
             label           => 'Store homepage url in field',
             options         => \%profileFields,
-        }
+        },
     );
+
+    my $exports     => [
+        {
+            name    => 'deployedPageRoot',
+            type    => 'assetId',
+            label   => 'Root of deployed pages',
+        }
+    ];
 
     push @{ $definition }, {
         name        => 'Homepage',
         properties  => \%fields,
+        exports     => $exports,
         namespace   => 'WebGUI::Registration::Step::Homepage',
     };
 
     return $class->SUPER::definition( $session, $definition );
+}
+
+#-------------------------------------------------------------------
+sub getEditForm {
+    my $self    = shift;
+    my $session = $self->session;
+
+    my $f = $self->SUPER::getEditForm;
+    $f->readOnly(
+        -label  => 'Edit group',
+        -value  => 
+            WebGUI::Form::group( $session, { 
+                name    => 'editGroupId', 
+                value   => $self->get('editGroupId') || $session->form->process('editGroupId'),
+            })
+            . $self->getExportVariablesSelectBox( 'editGroupId_export', 'groupId' ),
+    );
+
+    return $f;
 }
 
 #-------------------------------------------------------------------
@@ -195,6 +223,19 @@ sub isComplete {
     my $self = shift;
 
     return defined $self->getConfigurationData->{'preferredHomepageUrl'};
+}
+
+#-------------------------------------------------------------------
+sub processPropertiesFromFormPost {
+    my $self    = shift;
+    my $session = $self->session;
+
+    $self->SUPER::processPropertiesFromFormPost;
+
+    $self->update( {
+        editGroupId         => $session->form->process('editGroupId'),
+        editGroupId_export  => $session->form->process('editGroupId_export'),
+    } );
 }
 
 #-------------------------------------------------------------------

@@ -29,6 +29,9 @@ sub apply {
 #    # Add other users to group
 #    my $additionalUsers = $self->get('additionalUsers'):
 #    $userGroup->addUsers( $additionalUsers );
+
+    # Persist variable for exporting
+    $self->setExportVariable( 'userGroup', $userGroup->groupId );
 }
 
 #-------------------------------------------------------------------
@@ -65,9 +68,18 @@ sub definition {
         },
     );
 
+    my $exports = [
+        {
+            name    => 'userGroup',
+            type    => 'groupId',
+            label   => 'Created user group',
+        },
+    ];
+ 
     push @{ $definition }, {
         name        => 'UserGroup',
         properties  => \%fields,
+        exports     => $exports,
         namespace   => 'WebGUI::Registration::Step::UserGroup',
     };
 

@@ -107,6 +107,19 @@ sub definition {
 }
 
 #-------------------------------------------------------------------
+sub exportedVariables {
+    my $self    = shift;
+    my @exports;
+
+    foreach (@{ $self->definition( $self->session ) }  ) {
+        my $stepExports = $_->{ exports } || [];
+        push @exports, @{ $stepExports };
+    }
+
+    return \@exports;
+}
+
+#-------------------------------------------------------------------
 sub get {
     my $self    = shift;
     my $key     = shift;
@@ -132,6 +145,19 @@ sub getConfigurationData {
     return $configurationData ? decode_json($configurationData) : {};
 }
 
+#-------------------------------------------------------------------
+sub getExportVariable {
+    my $self    = shift;
+    my $key     = shift;
+
+    # $key has the format: StepID~VarName
+    my ($stepId, $variable) = ($key =~ m{^([^~]+)~(.+)$});
+
+    my $step    = $self->registration->getStep( $stepId );
+    my $value   = $step->getConfigurationData->{ $variable };
+
+    return $value;
+}
 
 #-------------------------------------------------------------------
 sub getEditForm {
@@ -158,6 +184,44 @@ sub getEditForm {
     $f->dynamicForm( $self->definition( $session ), 'properties', $self );
 
     return $f;
+}
+
+#-------------------------------------------------------------------
+sub getExportVariablesSelectBox {
+    my $self    = shift;
+    my $name    = shift;
+    my $type    = shift;
+    my $value   = shift || '';
+
+    my $session = $self->session;
+    my @steps   = @{ $self->registration->getSteps };
+
+    tie my %options, 'Tie::IxHash';
+    
+    # Loop over all steps and extract relevant export variables.
+    foreach my $step ( @steps ) {
+        # Stop at this step, since we cannot get data from the future.
+        last if ($step->stepId eq $self->stepId);
+
+        # Fetch the relevant varaiables from the step.
+        my @stepVariables =  
+            grep    { $_->{ type } eq $type }
+                    @{ $step->exportedVariables }
+            ;
+    
+        # And add to the select box options
+        foreach my $variable ( @stepVariables ) {
+            $options{ $step->stepId . '~' . $variable->{name} }  = $step->get('title') . '::' . $variable->{label};
+        }
+    }
+
+    my $formElement = WebGUI::Form::selectBox( $session, {
+        name    => $name,
+        options => \%options,
+        value   => $value,
+    });
+
+    return $formElement;
 }
 
 #-------------------------------------------------------------------
@@ -313,6 +377,14 @@ sub setConfigurationData {
     ]);
 }
 
+#-------------------------------------------------------------------
+sub setExportVariable {
+    my $self    = shift;
+    my $key     = shift;
+    my $value   = shift;
+
+    $self->setConfigurationData( $key, $value );
+}
 
 #-------------------------------------------------------------------
 sub update {
