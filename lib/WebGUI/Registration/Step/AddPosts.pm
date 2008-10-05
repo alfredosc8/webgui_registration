@@ -11,57 +11,92 @@ sub apply {
     my $self    = shift;
     my $session = $self->session;
 
-        # Add the medical categories
-        
-        if ($session->form->process('includeMedicalData')) {
-            my $slaveCSs = $deployedTreeMaster->getLineage(['descendants'], {
-                returnObjects       => 1,
-                includeOnlyClasses  => ['WebGUI::Asset::Wobject::Collaboration::Slave'],
-            });
+    # Find the destination CS
+    my $userPageRoot    = WebGUI::Asset->newByDynamicClassname( $session, $self->get('csTreeTopLevel') );
 
-            if (@$slaveCSs) {
-                my $medicalInfoTop      = $slaveCSs->[0];
-                my @medicalCategories   = $session->form->selectList('includeMedicalData');
-                
-                foreach my $assetId (@medicalCategories) {
-                    my $category = WebGUI::Asset->newByDynamicClass($session, $assetId);
-                    next unless $category;
+    my $destinationCS   = $deployedTreeMaster->getLineage(['descendants'], {
+        returnObjects       => 1,
+        includeOnlyClasses  => ['WebGUI::Asset::Wobject::Collaboration::Slave'],
+    });
 
-                    my $themes = $category->getLineage(['children'], {
-                        returnObjects      => 1,
-                        includeOnlyClasses => ['WebGUI::Asset::Post::Thread'],
-                    });
-                    next unless @$themes;
-        
-                    foreach my $theme (@$themes) {
-                        $self->copyMedicalData($theme, $medicalInfoTop);
-                    }
-                }
-            }
-            else {
-                $session->errorHandler->warn('No Slave CS present in branch.');
-            }
-            
-        }
-   
-        # Set urls of deployed package
-        my $updatePages = $deployedTreeMaster->getLineage( ['descendants'], {returnObjects => 1} );
-        foreach my $currentAsset (@$updatePages) {
-            # Figure out correct url
-            $assetProperties->{url} = $currentAsset->getParent->get('url') . '/' . $currentAsset->get('menuTitle');
+    #### TODO: Better error handling.
+    # Stop if not found.
+    return unless defined $destinationCS->[0];
 
-            if ($currentAsset->get('className') =~ m/^WebGUI::Asset::Wobject::Collaboration/ && $userGroup) {
-                $assetProperties->{postGroupId} = $userGroup->getId;
-                $assetProperties->{canStartThreadGroupId} = $userGroup->getId;
-            }
+    # Find the source CS
+    my @sourceCSs = @{ $self->getConfigurationData->{ sourceCSs } };
+    return unless scalar @sourceCSs
 
-            # Apply overrides
-            $currentAsset->update({ %$assetProperties });
+    my $medicalInfoTop      = $slaveCSs->[0];
+    
+    # Add the posts.
+    foreach my $assetId (@sourceCSs) {
+        my $category = WebGUI::Asset->newByDynamicClass($session, $assetId);
+        next unless $category;
+
+        my $themes = $category->getLineage(['children'], {
+            returnObjects      => 1,
+            includeOnlyClasses => ['WebGUI::Asset::Post::Thread'],
+        });
+        next unless @$themes;
+    
+        foreach my $theme (@$themes) {
+            $self->copyMedicalData($theme, $medicalInfoTop);
         }
     }
+    
 
+    # Set urls of deployed package
+    my $updatePages = $destinationCS->getLineage( ['descendants'], {returnObjects => 1} );
+    foreach my $currentAsset (@$updatePages) {
+        # Figure out correct url
+        $assetProperties->{url} = $currentAsset->getParent->get('url') . '/' . $currentAsset->get('menuTitle');
 
+        if ($currentAsset->get('className') =~ m/^WebGUI::Asset::Wobject::Collaboration/ && $userGroup) {
+            $assetProperties->{postGroupId} = $userGroup->getId;
+            $assetProperties->{canStartThreadGroupId} = $userGroup->getId;
+        }
+
+        # Apply overrides
+        $currentAsset->update({ %$assetProperties });
+    }
 }
+
+#-------------------------------------------------------------------
+sub copyMedicalData {
+    my $self            = shift;
+    my $master          = shift;
+    my $deployUnder     = shift;
+    my $slaveThreadId   = shift;
+
+    # Make a copy of the master asset
+    my $slave = $master->duplicate({
+        skipAutoCommitWorkflows     => 1,
+    });
+    $slave->setParent($deployUnder);
+
+    # Also update threadId for slave posts
+    if ($slave->get('className') eq 'WebGUI::Asset::Post::Thread') {
+        $slaveThreadId = $slave->getId;
+    }
+
+    # Insert the link to the master
+    $slave->update({
+        userDefined1    => $master->getId,
+        threadId        => $slaveThreadId,
+    });
+ 
+    # Recursively walk the tree to copy all remaining master assets.
+    my $children = $master->getLineage(['children'], {
+        returnObjects       => 1,
+        includeOnlyClasses  => ['WebGUI::Asset::Post', 'WebGUI::Asset::Post::Thread'],
+    });
+    
+    foreach my $child (@{ $children }) {
+        $self->copyMedicalData($child, $slave, $slaveThreadId);
+    }
+}
+
 
 #-------------------------------------------------------------------
 sub definition {
@@ -110,10 +145,7 @@ sub getSummaryTemplateVars {
 sub isComplete {
 
 }
-
-
-
-
+`
 #-------------------------------------------------------------------
 sub www_collectMedicalEncyclopediaImportCategories {
     my $self = shift;
