@@ -31,7 +31,7 @@ sub apply {
 #    $userGroup->addUsers( $additionalUsers );
 
     # Persist variable for exporting
-    $self->setExportVariable( 'userGroup', $userGroup->groupId );
+    $self->setExportVariable( 'userGroup', $userGroup->getId );
 }
 
 #-------------------------------------------------------------------

@@ -160,12 +160,16 @@ sub installUserPage {
     my $masterLineage       = $packageMasterAsset->get("lineage");
 
     if (defined $packageMasterAsset && $self->get("lineage") !~ /^$masterLineage/) {
+        my $userGroupId = $self->getExportVariable( $self->get('editGroupId_export') ) || $self->get('editGroupId');
+
+$session->errorHandler->warn("[[[[[[[[{{{{[[$userGroupId]]}}}}]]]]]]]]");
+
         my $assetProperties = {};
         # Set privileges of deployed package;
         if ($self->get('makeUserPageOwner')) {
             $assetProperties->{ownerUserId} = $user->userId;
 #            $assetProperties->{groupIdView} = $groupIdView;
-#            $assetProperties->{groupIdEdit} = $userGroup->getId if ($userGroup);
+            $assetProperties->{groupIdEdit} = $userGroupId if ($userGroupId);
         }
 
         #### NOTE: $fullName is used to replace the title and menuTitle of the root of the deployed asset.
@@ -202,9 +206,9 @@ sub installUserPage {
             # Figure out correct url
             $assetProperties->{url} = $currentAsset->getParent->get('url') . '/' . $currentAsset->get('menuTitle');
 
-            if ($currentAsset->get('className') =~ m/^WebGUI::Asset::Wobject::Collaboration/ && $userGroup) {
-                $assetProperties->{postGroupId} = $userGroup->getId;
-                $assetProperties->{canStartThreadGroupId} = $userGroup->getId;
+            if ($currentAsset->get('className') =~ m/^WebGUI::Asset::Wobject::Collaboration/ && $userGroupId) {
+                $assetProperties->{postGroupId} = $userGroupId;
+                $assetProperties->{canStartThreadGroupId} = $userGroupId;
             }
 
             # Apply overrides
