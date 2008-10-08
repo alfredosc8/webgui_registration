@@ -448,49 +448,6 @@ sub www_completeRegistration {
     return $self->processStyle( $template->process($var) )
 }
 
-#-------------------------------------------------------------------
-sub www_listSteps {
-    my $self    = shift;
-    my $session = $self->session;
-
-    my $steps = $self->getSteps;
-
-    my $output = '<ul>';
-    foreach my $step ( @{ $steps } ) {
-        $output .= '<li>'
-            . $session->icon->delete('registration=register;func=deleteStep;stepId='.$step->stepId.';registrationId='.$self->registrationId)
-            . '<a href="'
-            .   $session->url->page('registration=register;func=editStep;stepId='.$step->stepId.';registrationId='.$self->registrationId)
-            . '">'
-            . '[stap]'.$step->get( 'title' )
-            . '</a></li>';       
-    }
-
-    my $availableSteps = { map {$_ => $_} @{ $session->config->get('registrationSteps') } };
-    
-#    {
-#        'WebGUI::Registration::Step::StepOne'       => 'StepOne',
-#        'WebGUI::Registration::Step::StepTwo'       => 'StepTwo',
-#        'WebGUI::Registration::Step::ProfileData'   => 'ProfileData',
-#        'WebGUI::Registration::Step::Homepage'      => 'Homepage',
-#        'WebGUI::Registration::Step::UserGroup'     => 'UserGroup',
-#    };
-
-
-    my $addForm = 
-          WebGUI::Form::formHeader( $session )
-        . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'            } )
-        . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'addStep'             } )
-        . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $self->registrationId } )
-        . WebGUI::Form::selectBox(  $session, { -name => 'namespace',       -options => $availableSteps     } )
-        . WebGUI::Form::submit(     $session, {                             -value => 'Add step'            } )
-        . WebGUI::Form::formFooter( $session );
-
-
-    $output .= "<li>$addForm</li>";
-
-    return $output;
-}
 
 #-------------------------------------------------------------------
 sub www_deleteStep {

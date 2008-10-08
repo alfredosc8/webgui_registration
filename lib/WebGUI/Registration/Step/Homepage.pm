@@ -1,7 +1,7 @@
 package WebGUI::Registration::Step::Homepage;
 
 use strict;
-
+use Data::Dumper;
 use base qw{ WebGUI::Registration::Step };
 
 #-------------------------------------------------------------------
@@ -47,12 +47,12 @@ sub definition {
         },
     );
 
-    my $exports     => [
+    my $exports     = [
         {
             name    => 'deployedPageRoot',
             type    => 'assetId',
             label   => 'Root of deployed pages',
-        }
+        },
     ];
 
     push @{ $definition }, {
@@ -162,8 +162,6 @@ sub installUserPage {
     if (defined $packageMasterAsset && $self->get("lineage") !~ /^$masterLineage/) {
         my $userGroupId = $self->getExportVariable( $self->get('editGroupId_export') ) || $self->get('editGroupId');
 
-$session->errorHandler->warn("[[[[[[[[{{{{[[$userGroupId]]}}}}]]]]]]]]");
-
         my $assetProperties = {};
         # Set privileges of deployed package;
         if ($self->get('makeUserPageOwner')) {
@@ -182,9 +180,10 @@ $session->errorHandler->warn("[[[[[[[[{{{{[[$userGroupId]]}}}}]]]]]]]]");
 
         # Figure out the root url of the deployed package.
         my $deployedPackageRootUrl = 
-               $session->form->process('rootUrlOverride') 
-            || '/' . $user->profileField('firstName') . $user->profileField('middleName') . $user->profileField('lastName');
+               $self->getConfigurationData->{ preferredHomepageUrl }
+            || $user->profileField('firstName') . $user->profileField('middleName') . $user->profileField('lastName');
             
+$self->session->errorHandler->warn("[[[[$deployedPackageRootUrl]]]]");  
         # Deploy package under userPageRoot
 		my $deployedTreeMaster = $packageMasterAsset->duplicateBranch;
 		$deployedTreeMaster->setParent($userPageRoot);
@@ -214,6 +213,8 @@ $session->errorHandler->warn("[[[[[[[[{{{{[[$userGroupId]]}}}}]]]]]]]]");
             # Apply overrides
             $currentAsset->update({ %$assetProperties });
         }
+
+        $self->setExportVariable( 'deployedPageRoot', $deployedTreeMaster->getId );
     }
  
     # Commit the tag and return the user to their previous tag
@@ -291,7 +292,7 @@ sub view {
 
     my $var;
     $var->{ category_name   } = 'Naam van uw site';
-    $var->{ comment         } = $self->get('homepageUrlComment');
+    $var->{ comment         } = $self->get('comment');
     $var->{ form            } = $f->print;
     $var->{ form_header     } =
         WebGUI::Form::formHeader($self->session)

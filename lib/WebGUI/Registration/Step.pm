@@ -95,6 +95,10 @@ sub definition {
 #            label       => $i18n->echo('title'),
 #            hoverHelp   => $i18n->echo('title help'),
         },
+        comment => {
+            fieldType   => 'HTMLArea',
+            label       => 'Comments',
+        },
     );
 
     push @{ $definition }, {
@@ -111,7 +115,7 @@ sub exportedVariables {
     my $self    = shift;
     my @exports;
 
-    foreach (@{ $self->definition( $self->session ) }  ) {
+    foreach ( @{ $self->definition( $self->session ) }  ) {
         my $stepExports = $_->{ exports } || [];
         push @exports, @{ $stepExports };
     }

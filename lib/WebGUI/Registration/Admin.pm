@@ -153,6 +153,41 @@ sub www_editRegistrationInstanceDataSave {
 }
 
 #-------------------------------------------------------------------
+sub www_listSteps {
+    my $session = shift;
+
+    my $registrationId  = $session->form->process('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+    my $steps           = $registration->getSteps;
+
+    my $output = '<ul>';
+    foreach my $step ( @{ $steps } ) {
+        $output .= '<li>'
+            . $session->icon->delete('registration=register;func=deleteStep;stepId='.$step->stepId.';registrationId='.$registrationId)
+            . '<a href="'
+            .   $session->url->page('registration=register;func=editStep;stepId='.$step->stepId.';registrationId='.$registrationId)
+            . '">'
+            . '[stap]'.$step->get( 'title' )
+            . '</a></li>';       
+    }
+
+    my $availableSteps  = { map {$_ => $_} @{ $session->config->get('registrationSteps') } };
+    my $addForm         = 
+          WebGUI::Form::formHeader( $session )
+        . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'            } )
+        . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'addStep'             } )
+        . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $registrationId       } )
+        . WebGUI::Form::selectBox(  $session, { -name => 'namespace',       -options => $availableSteps     } )
+        . WebGUI::Form::submit(     $session, {                             -value => 'Add step'            } )
+        . WebGUI::Form::formFooter( $session );
+
+
+    $output .= "<li>$addForm</li>";
+
+    return adminConsole( $session, $output, 'Edit registration steps for ' . $registration->get('title') );
+}
+
+#-------------------------------------------------------------------
 sub www_view {
     my $session = shift;
 
@@ -176,7 +211,7 @@ sub www_view {
             . WebGUI::Form::formFooter( $session );
         my $stepsButton =
               WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'    } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'       } )
             . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listSteps'   } )
             . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id           } )
             . WebGUI::Form::submit(     $session, {                             -value => 'Steps'       } )
