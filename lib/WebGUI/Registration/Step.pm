@@ -229,6 +229,11 @@ sub getExportVariablesSelectBox {
 }
 
 #-------------------------------------------------------------------
+sub getSubstepStatus {
+
+}
+
+#-------------------------------------------------------------------
 sub getStepForm {
     my $self    = shift;
 

@@ -3,6 +3,7 @@ package WebGUI::Registration::Step::ProfileData;
 use strict;
 
 use Data::Dumper;
+use List::Util qw{ first };
 
 use base qw{ WebGUI::Registration::Step };
 
@@ -100,6 +101,35 @@ sub getEditForm {
     $f->fieldSetEnd;
 
     return $f; 
+}
+
+#-------------------------------------------------------------------
+sub getSubstepStatus {
+    my $self    = shift;
+    my $session = $self->session;
+    my @substepStatus;
+
+    my $profileSteps    = $self->get('profileSteps');
+    my @categories      = map    { $profileSteps->{$_} } 
+                          sort 
+                          grep   /^profileStep\d\d?$/, 
+                                keys %$profileSteps;
+
+    my $completedCategories     = $self->getConfigurationData->{ completedProfileCategories } || {};
+    my $currentCategory         = first { !exists $completedCategories->{ $_ } } @categories;
+
+    # And put into tmpl_vars
+    foreach my $categoryId ( @categories ) {
+        my $category = WebGUI::ProfileCategory->new($session, $categoryId);
+
+        push @substepStatus, {
+            substepName         => $category->getLabel,
+            substepComplete     => exists $completedCategories->{ $categoryId },
+            isCurrentSubstep    => $currentCategory eq $categoryId,
+        }
+    }
+
+    return \@substepStatus;
 }
 
 #-------------------------------------------------------------------

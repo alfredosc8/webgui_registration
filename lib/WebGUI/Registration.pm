@@ -209,6 +209,32 @@ sub getEditForm {
 }
 
 #-------------------------------------------------------------------
+sub getStepStatus {
+    my $self    = shift;
+
+    my @steps       = @{ $self->getSteps };
+    my $currentStep = $self->getCurrentStep;
+    my @stepStatus;
+    my $stepCounter = 1;
+
+    foreach my $step (@steps) {
+        my $substeps = $step->getSubstepStatus;
+
+        push @stepStatus, {
+            stepName            => $step->get('title'),
+            stepComplete        => $step->isComplete,
+            isCurrentStep       => $currentStep->stepId eq $step->stepId,
+            stepNumber          => $stepCounter,
+            substep_loop        => $step->getSubstepStatus,
+        };
+
+        $stepCounter++;
+    }
+
+    return \@stepStatus;
+}
+
+#-------------------------------------------------------------------
 sub getRegistrationStatus {
     my $self    = shift;
     my $session = shift;
