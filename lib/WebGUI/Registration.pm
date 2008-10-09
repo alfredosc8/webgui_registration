@@ -223,7 +223,7 @@ sub getStepStatus {
         push @stepStatus, {
             stepName            => $step->get('title'),
             stepComplete        => $step->isComplete,
-            isCurrentStep       => $currentStep->stepId eq $step->stepId,
+            isCurrentStep       => $currentStep ? $currentStep->stepId eq $step->stepId : 0,
             stepNumber          => $stepCounter,
             substep_loop        => $step->getSubstepStatus,
         };
