@@ -20,7 +20,9 @@ sub definition {
     my $definition  = shift;
     my $i18n        = WebGUI::International->new( $session, 'Registration_Step_Homepage' );
 
+    # Create a hash containing all profile fields of the form: ID => Category::FieldName. 
     tie my %profileFields, 'Tie::IxHash', 
+        ''  => '--- Do not store ---',
         map { $_->getId => $_->getCategory->getLabel . '::' . $_->getLabel }
             @{ WebGUI::ProfileField->getFields($session) };
 
@@ -183,7 +185,6 @@ sub installUserPage {
                $self->getConfigurationData->{ preferredHomepageUrl }
             || $user->profileField('firstName') . $user->profileField('middleName') . $user->profileField('lastName');
             
-$self->session->errorHandler->warn("[[[[$deployedPackageRootUrl]]]]");  
         # Deploy package under userPageRoot
 		my $deployedTreeMaster = $packageMasterAsset->duplicateBranch;
 		$deployedTreeMaster->setParent($userPageRoot);
@@ -197,7 +198,9 @@ $self->session->errorHandler->warn("[[[[$deployedPackageRootUrl]]]]");
         }); #, styleTemplateId=>$self->get("styleTemplateId")});
 
         # Store the root url in the user profile
-        $user->profileField($self->get('urlStorageField'), $deployedTreeMaster->getUrl);
+        if ( $self->get('urlStorageField') ) {
+            $user->profileField($self->get('urlStorageField'), $deployedTreeMaster->getUrl);
+        }
 
         # Set urls of deployed package
         my $updatePages = $deployedTreeMaster->getLineage( ['descendants'], {returnObjects => 1} );

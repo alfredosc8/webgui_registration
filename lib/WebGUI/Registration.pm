@@ -218,6 +218,8 @@ sub getStepStatus {
     my $stepCounter = 1;
 
     foreach my $step (@steps) {
+        next if $step->isInvisible;
+
         my $substeps = $step->getSubstepStatus;
 
         push @stepStatus, {
