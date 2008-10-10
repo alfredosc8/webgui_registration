@@ -12,7 +12,14 @@ sub adminConsole {
     my $content = shift;
     my $title   = shift;
 
-    return WebGUI::AdminConsole->new( $session )->render( $content, $title );
+    my $ac = WebGUI::AdminConsole->new( $session );
+
+    my $registrationId = $session->stow->get('admin_registrationId');
+
+    $ac->addSubmenuItem( $session->url->page('registration=admin;func=view'), 'List registrations');
+    $ac->addSubmenuItem( $session->url->page('registration=admin;func=listSteps;registrationId='.$registrationId), 'List registration steps');    
+
+    return $ac->render( $content, $title );
 }
 
 #-------------------------------------------------------------------
@@ -221,6 +228,7 @@ sub www_editStep {
 
     my $stepId  = $session->form->process('stepId');
     my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+    $session->stow->set('admin_registrationId', $step->registration->registrationId);
 
     return adminConsole( $session, $step->www_edit, 'Edit step for ' . $step->registration->get('title') );
 }
@@ -246,6 +254,8 @@ sub www_listSteps {
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
     my $steps           = $registration->getSteps;
+    
+    $session->stow->set('admin_registrationId', $registrationId);
 
     my $output = '<ul>';
     foreach my $step ( @{ $steps } ) {
