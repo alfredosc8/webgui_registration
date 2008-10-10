@@ -128,7 +128,7 @@ sub www_listPendingRegistrations {
             .
             $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
             .'">EDIT</a></td>';
-        $output .= '<td>'.$user->username.'</td><td>'.$user->profileField('homepageUrl').'</td></tr>';
+        $output .= '<td>'.$user->username.'</td>'; #<td>'.$user->profileField('homepageUrl').'</td></tr>';
     }
     $output .= '</table>';
 

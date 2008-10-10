@@ -56,6 +56,31 @@ sub definition {
             label       => 'No valid user template',
             namespace   => 'Registration/NoValidUser',
         },
+
+        setupCompleteMailSubject => {
+            fieldType   => 'text',
+            tab         => 'display',
+            label       => 'Setup complete notification email subject',
+        },
+        setupCompleteMailTemplateId => {
+            fieldType   => 'template',
+            namespace   => 'Registration/CompleteMail',
+            tab         => 'display',
+            label       => 'Registration complete notification email template',
+        },
+
+        siteApprovalMailSubject => {
+            fieldType   => 'text',
+            tab         => 'display',
+            label       => 'Site approval nofication mail subject',
+        },
+        siteApprovalMailTemplateId => {
+            fieldType   => 'template',
+            namespace   => 'Registration/ApprovalMail',
+            tab         => 'display',
+            label       => 'Site approval nofication mail template',
+        },
+ 
     );
 
     push  @{ $definition }, {
@@ -243,7 +268,7 @@ sub getStepStatus {
 #-------------------------------------------------------------------
 sub getRegistrationStatus {
     my $self    = shift;
-    my $session = shift;
+    my $session = $self->session;
 
     my $status  = $session->db->quickScalar(
         'select status from Registration_status where registrationId=? and userId=?', 
@@ -370,6 +395,18 @@ sub processStyle {
     return $self->session->style->process( $content, $styleTemplateId );
 }
 
+#-------------------------------------------------------------------
+sub registrationComplete {
+    my $self    = shift;
+
+    my $currentStep = $self->getCurrentStep;
+
+    # If current step is undef all steps and thus the registration is complete.
+    return 1 unless defined $currentStep;
+
+    # If it is defined, not all steps are not complete yet.
+    return 0;
+}
 
 #-------------------------------------------------------------------
 sub setRegistrationStatus {
@@ -429,6 +466,13 @@ sub www_confirmRegistrationData {
 
     return $session->privilege->noAccess unless $self->hasValidUser;
 
+    # If not all steps are completed yet, go to the step form
+    return $self->www_viewStep unless $self->registrationComplete;
+
+    # TODO: Andere target url heirvoor.
+    # Only show this screen when we're still in the setup phase
+    return $self->www_completeRegistration unless $self->getRegistrationStatus eq 'setup';
+
     my $steps           = $self->getSteps;
     my @categoryLoop    = ();
 
@@ -451,18 +495,19 @@ sub www_completeRegistration {
     my $self    = shift;
     my $session = $self->session;
 
-    return $session->privilege->noAccess unless $self->hasValidUser;
-    #### TODO:Check registration complete
+    return $self->www_noValidUser unless $self->hasValidUser;
 
-    #### TODO: Send Email
-#    my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplate'));
-#    my $mailBody        = $mailTemplate->process( {} );
-#    my $mail            = WebGUI::Mail::Send->create($self->session, {
-#        toUser      => $user->userId,
-#        subject     => $self->get('setupCompleteMailSubject'),
-#    });
-#    $mail->addText($mailBody);
-#    $mail->queue;
+    # If not all steps are completed yet, go to the step form
+    return $self->www_viewStep unless $self->registrationComplete;
+
+    my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
+    my $mailBody        = $mailTemplate->process( {} );
+    my $mail            = WebGUI::Mail::Send->create($self->session, {
+        toUser      => $self->user->userId,
+        subject     => $self->get('setupCompleteMailSubject'),
+    });
+    $mail->addText($mailBody);
+    $mail->queue;
 
     $self->setRegistrationStatus( 'pending' );
 
