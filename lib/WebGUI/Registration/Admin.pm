@@ -2,7 +2,7 @@ package WebGUI::Registration::Admin;
 
 use strict;
 use WebGUI::Registration;
-
+use WebGUI::Registration::Step;
 use WebGUI::AdminConsole;
 
 
@@ -25,8 +25,34 @@ sub www_addRegistration {
 }
 
 #-------------------------------------------------------------------
+sub www_addStep {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $registrationId  = $session->form->process('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+
+    my $namespace = $session->form->process( 'namespace' );
+    return "Illegal namespace [$namespace]" unless $namespace =~ /^[\w\d\:]+$/;
+
+    my $step = eval {
+        WebGUI::Pluggable::instanciate( $namespace, 'create', [
+            $session,
+            $registration,
+        ] );
+    };
+
+    #### TODO: catch exception
+
+    return adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
+}
+
+#-------------------------------------------------------------------
 sub www_deleteRegistration {
     my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     my $registrationId  = $session->form->process('registrationId');
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
@@ -36,8 +62,43 @@ sub www_deleteRegistration {
 }
 
 #-------------------------------------------------------------------
-sub www_editSave {
+sub www_deleteStep {
+    my $session = shift;
 
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $stepId  = $session->form->process('stepId');
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+    $step->delete;
+
+    return www_listSteps( $session, $step->registration->registrationId );
+}
+
+
+#-------------------------------------------------------------------
+sub www_editRegistration {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $registrationId  = $session->form->process('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+
+    return adminConsole( $session, $registration->getEditForm->print, 'Edit Registration');
+}
+
+#-------------------------------------------------------------------
+sub www_editRegistrationSave {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    
+    my $registrationId  = $session->form->process('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+
+    $registration->processPropertiesFromFormPost;
+
+    return www_view( $session );
 }
 
 #-------------------------------------------------------------------
@@ -153,19 +214,45 @@ sub www_editRegistrationInstanceDataSave {
 }
 
 #-------------------------------------------------------------------
-sub www_listSteps {
+sub www_editStep {
     my $session = shift;
 
-    my $registrationId  = $session->form->process('registrationId');
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $stepId  = $session->form->process('stepId');
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+
+    return adminConsole( $session, $step->www_edit, 'Edit step for ' . $step->registration->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_editStepSave {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $stepId  = $session->form->process('stepId');
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+
+    $step->processPropertiesFromFormPost;
+
+    return www_listSteps( $session, $step->registration->registrationId );
+}
+
+#-------------------------------------------------------------------
+sub www_listSteps {
+    my $session         = shift;
+    my $registrationId  = shift || $session->form->process('registrationId');
+
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
     my $steps           = $registration->getSteps;
 
     my $output = '<ul>';
     foreach my $step ( @{ $steps } ) {
         $output .= '<li>'
-            . $session->icon->delete('registration=register;func=deleteStep;stepId='.$step->stepId.';registrationId='.$registrationId)
+            . $session->icon->delete('registration=admin;func=deleteStep;stepId='.$step->stepId.';registrationId='.$registrationId)
             . '<a href="'
-            .   $session->url->page('registration=register;func=editStep;stepId='.$step->stepId.';registrationId='.$registrationId)
+            .   $session->url->page('registration=admin;func=editStep;stepId='.$step->stepId.';registrationId='.$registrationId)
             . '">'
             . '[stap]'.$step->get( 'title' )
             . '</a></li>';       
@@ -174,7 +261,7 @@ sub www_listSteps {
     my $availableSteps  = { map {$_ => $_} @{ $session->config->get('registrationSteps') } };
     my $addForm         = 
           WebGUI::Form::formHeader( $session )
-        . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'            } )
+        . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
         . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'addStep'             } )
         . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $registrationId       } )
         . WebGUI::Form::selectBox(  $session, { -name => 'namespace',       -options => $availableSteps     } )
@@ -204,24 +291,24 @@ sub www_view {
         );
         my $editButton =
               WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'register'    } )
-            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'edit'        } )
-            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id           } )
-            . WebGUI::Form::submit(     $session, {                             -value => 'Edit'        } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
+            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'editRegistration'    } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
+            . WebGUI::Form::submit(     $session, {                             -value => 'Edit'                } )
             . WebGUI::Form::formFooter( $session );
         my $stepsButton =
               WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'       } )
-            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listSteps'   } )
-            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id           } )
-            . WebGUI::Form::submit(     $session, {                             -value => 'Steps'       } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
+            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listSteps'           } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
+            . WebGUI::Form::submit(     $session, {                             -value => 'Steps'               } )
             . WebGUI::Form::formFooter( $session );
         my $accountButton =
               WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'           } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
             . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listPendingRegistrations' } )
-            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id               } )
-            . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts' } )
+            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
+            . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts'     } )
             . WebGUI::Form::formFooter( $session );
             
         $output .= "<li>$deleteButton $editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';

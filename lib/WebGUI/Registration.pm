@@ -196,11 +196,11 @@ sub getEditForm {
     my $f = WebGUI::HTMLForm->new( $session );
     $f->hidden(
         -name       => 'registration',
-        -value      => 'register',
+        -value      => 'admin',
     );
     $f->hidden(
         -name       => 'func',
-        -value      => 'editSave',
+        -value      => 'editRegistrationSave',
     );
     $f->hidden(
         -name       => 'registrationId',
@@ -261,7 +261,7 @@ sub getStep {
     my $self    = shift;
     my $stepId  = shift;
 
-    my $step    = WebGUI::Registration::Step->newByDynamicClassname( $self->session, $stepId, $self );
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId, $self );
 
     return $step;
 }
@@ -421,28 +421,6 @@ sub update {
     }
 }
 
-#-------------------------------------------------------------------
-#### TODO: Moven naar admin
-sub www_addStep {
-    my $self    = shift;
-    my $session = $self->session;
-
-    #### TODO: Auth
-
-    my $namespace = $session->form->process( 'namespace' );
-    return "Illegal namespace [$namespace]" unless $namespace =~ /^[\w\d\:]+$/;
-
-    my $step = eval {
-        WebGUI::Pluggable::instanciate( $namespace, 'create', [
-            $session,
-            $self
-        ] );
-    };
-
-    #### TODO: catch exception
-
-    return $step->www_edit;
-}
 
 #-------------------------------------------------------------------
 sub www_confirmRegistrationData {
@@ -494,7 +472,6 @@ sub www_completeRegistration {
 }
 
 #-------------------------------------------------------------------
-#### TODO: Moven naar admin
 sub www_createAccount {
     my $self    = shift;
     my $session = $self->session;
@@ -506,70 +483,6 @@ sub www_createAccount {
     return WebGUI::Operation::Auth::www_auth( $session, 'createAccount' );
 }
 
-#-------------------------------------------------------------------
-#### TODO: Moven naar admin
-sub www_deleteStep {
-    my $self    = shift;
-    my $session = $self->session;
-
-    my $stepId  = $session->form->process('stepId');
-
-    $self->session->db->write('delete from RegistrationStep where stepId=?', [
-        $stepId,
-    ]);
-
-    return $self->www_listSteps;
-}
-
-#-------------------------------------------------------------------
-#### TODO: Moven naar admin
-sub www_edit {
-    my $self    = shift;
-    my $session = $self->session;
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
-    return $self->getEditForm->print;
-}
-
-#-------------------------------------------------------------------
-#### TODO: MOven naar admin
-sub www_editSave {
-    my $self    = shift;
-    my $session = $self->session;
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
-    $self->processPropertiesFromFormPost;
-
-    return WebGUI::Registration::Admin::www_view( $session );
-}
-
-#-------------------------------------------------------------------
-#### TODO: Moven naar admin.
-sub www_editStep {
-    my $self    = shift;
-    my $session = $self->session;
-
-    my $stepId  = $session->form->process('stepId');
-    my $step    = $self->getStep( $stepId );
-
-    return $step->www_edit;
-}
-
-#-------------------------------------------------------------------
-#### TODO: Moven naar admin.
-sub www_editStepSave {
-    my $self    = shift;
-    my $session = $self->session;
-
-    my $stepId  = $session->form->process('stepId');
-    my $step    = $self->getStep( $stepId );
-
-    $step->processPropertiesFromFormPost;
-
-    return $self->www_listSteps;
-}
 
 #-------------------------------------------------------------------
 sub www_login {

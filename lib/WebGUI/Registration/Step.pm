@@ -3,6 +3,7 @@ package WebGUI::Registration::Step;
 use strict;
 use Class::InsideOut qw{ :std };
 use WebGUI::HTMLForm;
+use WebGUI::Registration;
 use JSON;
 
 use Data::Dumper;
@@ -111,6 +112,19 @@ sub definition {
 }
 
 #-------------------------------------------------------------------
+sub delete {
+    my $self    = shift;
+    my $session = $self->session;
+
+    $session->db->write('delete from RegistrationStep where stepId=?', [
+        $self->stepId,
+    ]);
+    $session->db->write('delete from RegistrationStep_accountData where stepId=?', [
+        $self->stepId,
+    ]);
+}
+
+#-------------------------------------------------------------------
 sub exportedVariables {
     my $self    = shift;
     my @exports;
@@ -171,7 +185,7 @@ sub getEditForm {
     my $f = WebGUI::HTMLForm->new( $session );
     $f->hidden(
         -name   => 'registration',
-        -value  => 'register',
+        -value  => 'admin',
     );
     $f->hidden(
         -name   => 'func',
@@ -181,10 +195,10 @@ sub getEditForm {
         -name   => 'stepId',
         -value  => $self->stepId,
     );
-    $f->hidden(
-        -name   => 'registrationId',
-        -value  => $self->registration->registrationId,
-    );
+#    $f->hidden(
+#        -name   => 'registrationId',
+#        -value  => $self->registration->registrationId,
+#    );
     $f->dynamicForm( $self->definition( $session ), 'properties', $self );
 
     return $f;
@@ -255,7 +269,7 @@ sub getStepForm {
 }
 
 #-------------------------------------------------------------------
-sub newByDynamicClassname {
+sub newByDynamicClass {
     my $class           = shift;
     my $session         = shift;
     my $stepId          = shift;
@@ -296,13 +310,24 @@ sub isInvisible {
 sub new {
     my $class           = shift;
     my $session         = shift;
-    my $stepId          = shift;
+    my $stepId          = shift || die 'no step id passed';
     my $registration    = shift;
+
+    # If no registration is passed, we'll have to instanciate it ourselves.
+    unless ($registration) {
+        my $registrationId = 
+            $session->db->quickScalar('select registrationId from RegistrationStep where stepId=?', [
+                $stepId,
+            ]);
+        $registration = WebGUI::Registration->new( $session, $registrationId );
+    }
     
+    # Fetch properties from db.
     my $properties  = $session->db->quickHashRef( 'select * from RegistrationStep where stepId=?', [
         $stepId,
     ]);
 
+    # Setup object.
     my $self = $class->_buildObj( $session, $stepId, $registration, decode_json( $properties->{ options } ) );
 
     return $self;
