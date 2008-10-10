@@ -16,6 +16,7 @@ readonly registrationSteps  => my %registrationSteps;
 readonly options            => my %options;
 readonly user               => my %user;
 
+#-------------------------------------------------------------------
 sub definition {
     my $class       = shift;
     my $session     = shift;
@@ -50,6 +51,11 @@ sub definition {
             label       => 'Registration Complete Message',
             namespace   => 'Registration/CompleteMessage',
         },
+        noValidUserTemplateId   => {
+            fieldType   => 'template',
+            label       => 'No valid user template',
+            namespace   => 'Registration/NoValidUser',
+        },
     );
 
     push  @{ $definition }, {
@@ -59,7 +65,6 @@ sub definition {
 
     return $definition;
 };
-
 
 #-------------------------------------------------------------------
 sub _buildObj {
@@ -71,8 +76,7 @@ sub _buildObj {
     my $self            = { };
 
     # --- Fetch registration steps from db ----------------------
-    # TODO: Dit moet natuurlijk gewoon uit de db komen.
-    
+    # TODO: Dit kan wel weg denk ik. Functionaliteit zit nu in getSteps.
     my $registrationSteps = $session->db->buildArrayRefOfHashRefs(
         'select * from RegistrationStep where registrationId=? order by stepOrder',
         [
@@ -282,6 +286,16 @@ sub getSteps {
     return \@steps;
 }
 
+#-------------------------------------------------------------------
+sub hasValidUser {
+    my $self    = shift;
+
+    # Site status checken
+    # ie. not pending or complete
+
+    # If a user has been loaded into the Registration that is not a visitor, return true.
+    return $self->user && $self->user->userId ne '1';
+}
 
 #-------------------------------------------------------------------
 sub new {
@@ -408,6 +422,7 @@ sub update {
 }
 
 #-------------------------------------------------------------------
+#### TODO: Moven naar admin
 sub www_addStep {
     my $self    = shift;
     my $session = $self->session;
@@ -424,7 +439,6 @@ sub www_addStep {
         ] );
     };
 
-    $session->errorHandler->warn("}{}{}{$@ $!}{}{}{") if $@;
     #### TODO: catch exception
 
     return $step->www_edit;
@@ -434,7 +448,9 @@ sub www_addStep {
 sub www_confirmRegistrationData {
     my $self    = shift;
     my $session = $self->session;
-    
+
+    return $session->privilege->noAccess unless $self->hasValidUser;
+
     my $steps           = $self->getSteps;
     my @categoryLoop    = ();
 
@@ -457,6 +473,7 @@ sub www_completeRegistration {
     my $self    = shift;
     my $session = $self->session;
 
+    return $session->privilege->noAccess unless $self->hasValidUser;
     #### TODO:Check registration complete
 
     #### TODO: Send Email
@@ -476,12 +493,26 @@ sub www_completeRegistration {
     return $self->processStyle( $template->process($var) )
 }
 
+#-------------------------------------------------------------------
+#### TODO: Moven naar admin
+sub www_createAccount {
+    my $self    = shift;
+    my $session = $self->session;
+
+    $self->session->scratch->set('redirectAfterLogin', $session->url->page('func=getProfileCategoryData'));
+
+    # Cannot use WG::Op::www_auth b/c the user style is hard coded in there...
+    return $self->processStyle( WebGUI::Auth::WebGUI->new( $session )->createAccount );
+    return WebGUI::Operation::Auth::www_auth( $session, 'createAccount' );
+}
 
 #-------------------------------------------------------------------
+#### TODO: Moven naar admin
 sub www_deleteStep {
     my $self    = shift;
+    my $session = $self->session;
 
-    my $stepId  = $self->session->form->process('stepId');
+    my $stepId  = $session->form->process('stepId');
 
     $self->session->db->write('delete from RegistrationStep where stepId=?', [
         $stepId,
@@ -491,23 +522,31 @@ sub www_deleteStep {
 }
 
 #-------------------------------------------------------------------
+#### TODO: Moven naar admin
 sub www_edit {
     my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     return $self->getEditForm->print;
 }
 
 #-------------------------------------------------------------------
+#### TODO: MOven naar admin
 sub www_editSave {
     my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     $self->processPropertiesFromFormPost;
 
-    return WebGUI::Registration::Admin::www_view( $self->session );
+    return WebGUI::Registration::Admin::www_view( $session );
 }
 
 #-------------------------------------------------------------------
-#### TODO: Hier een do-method van maken?
+#### TODO: Moven naar admin.
 sub www_editStep {
     my $self    = shift;
     my $session = $self->session;
@@ -519,7 +558,7 @@ sub www_editStep {
 }
 
 #-------------------------------------------------------------------
-#### TODO: Hier een do-method van maken?
+#### TODO: Moven naar admin.
 sub www_editStepSave {
     my $self    = shift;
     my $session = $self->session;
@@ -533,32 +572,44 @@ sub www_editStepSave {
 }
 
 #-------------------------------------------------------------------
-sub www_do {
+sub www_login {
     my $self    = shift;
-    my $session = shift;
-    
-    #### TODO: Auth
+    my $session = $self->session;
 
-    my $method  = 'www_' . $session->form->process('do');
-    my $stepId  = $session->form->process('stepId');
+    $session->scratch->set('redirectAfterLogin', $session->url->page('func=getProfileCategoryData'));
 
-    return "Illegal method [$method]" unless $method =~ /^[\w_]+$/;
-
-    my $step = eval {
-        WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-    };
-
-    return "Unable to do method [$method]" unless $step->can( $method );
-
-    return $step->$method();
+    # Cannot use WG::Op::www_auth b/c the user style is hardcoded...
+    return $self->processStyle( WebGUI::Auth::WebGUI->new($session)->init );
+    return WebGUI::Operation::Auth::www_auth($session, 'init');
 }
 
-
+##-------------------------------------------------------------------
+#sub www_do {
+#    my $self    = shift;
+#    my $session = shift;
+#    
+#    #### TODO: Auth
+#
+#    my $method  = 'www_' . $session->form->process('do');
+#    my $stepId  = $session->form->process('stepId');
+#
+#    return "Illegal method [$method]" unless $method =~ /^[\w_]+$/;
+#
+#    my $step = eval {
+#        WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+#    };
+#
+#    return "Unable to do method [$method]" unless $step->can( $method );
+#
+#    return $step->$method();
+#}
 
 #-------------------------------------------------------------------
 sub www_viewStep {
     my $self    = shift;
     my $session = $self->session;
+
+    return $self->www_noValidUser unless $self->hasValidUser;
 
     my $output;
 
@@ -595,6 +646,9 @@ sub www_viewStep {
 #-------------------------------------------------------------------
 sub www_viewStepSave {
     my $self    = shift;
+    my $session = shift;
+
+    return $self->www_noValidUser unless $self->hasValidUser;
 
     my $currentStep = $self->getCurrentStep;
 
@@ -602,14 +656,66 @@ sub www_viewStepSave {
     return $self->www_viewStep unless $currentStep;
 
     $currentStep->processStepFormData;
-$self->session->errorHandler->warn(']]]]]]');
 
     # Return the step screen if an error occurred during processing.
     return $currentStep->www_view if (@{ $currentStep->error });
-$self->session->errorHandler->warn('[[[[[[');
+
     # Otherwise proceed.
     return $self->www_viewStep;
 }
+
+#-------------------------------------------------------------------
+sub www_noValidUser {
+    my $self    = shift;
+    my $session = $self->session;
+    
+    if ($self->hasValidUser || $self->user->userId eq '1') {
+        # Set site status flag to setup
+        $self->setRegistrationStatus('setup');
+    }
+    else {
+        return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
+    }
+
+    # If user is Visitor he'll have to log in. Make sure that he's redirected to the correct place after doing
+    # that.
+    if ($session->user->userId eq '1') {
+        $session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
+    }
+
+    my $var;
+    $var->{ login_button            } =
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                     } )
+        . WebGUI::Form::submit($session, {                      value => 'Inloggen'                 } )
+        . WebGUI::Form::formFooter($session);
+    $var->{ login_url               } = $session->url->page('func=login');
+    $var->{ createAccount_button    } =
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'createAccount'            } )
+        . WebGUI::Form::submit($session, {                      value => 'Account aanmaken'         } )
+        . WebGUI::Form::formFooter($session);
+    $var->{ createAccount_url       } = $session->url->page('func=createAccount');
+    $var->{ proceed_button          } =
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'getProfileCategoryData'   } )
+        . WebGUI::Form::submit($session, {                      value => 'Volgende stap'            } )
+        . WebGUI::Form::formFooter($session);
+    $var->{ proceed_url             } = $session->url->page('func=getProfileCategoryData');
+    $var->{ isVisitor               } = ($session->user->userId eq '1');
+
+    my $template = WebGUI::Asset::Template->new($self->session, $self->get('noValidUserTemplateId'));
+    return $self->processStyle( $template->process($var) );
+}
+
+#-------------------------------------------------------------------   
+sub www_view {
+    my $self = shift;
+    return $self->www_setupSite unless ($self->canEdit || $self->canInstallUserPage);
+
+    return $self->SUPER::www_view;
+}
+
 
 1;
 
