@@ -397,6 +397,13 @@ sub processStyle {
 
 #-------------------------------------------------------------------
 sub registrationComplete {
+    my $self = shift;
+
+    return $self->getRegistrationStatus ne 'setup';
+}
+
+#-------------------------------------------------------------------
+sub registrationStepsComplete {
     my $self    = shift;
 
     my $currentStep = $self->getCurrentStep;
@@ -464,14 +471,14 @@ sub www_confirmRegistrationData {
     my $self    = shift;
     my $session = $self->session;
 
+    # If the registration process has been completed display a message stating that.
+    return $self->www_registrationComplete if $self->registrationComplete;
+
+    # Check whether the user is allowed to register.
     return $session->privilege->noAccess unless $self->hasValidUser;
 
     # If not all steps are completed yet, go to the step form
-    return $self->www_viewStep unless $self->registrationComplete;
-
-    # TODO: Andere target url heirvoor.
-    # Only show this screen when we're still in the setup phase
-    return $self->www_completeRegistration unless $self->getRegistrationStatus eq 'setup';
+    return $self->www_viewStep unless $self->registrationStepsComplete;
 
     my $steps           = $self->getSteps;
     my @categoryLoop    = ();
@@ -495,10 +502,14 @@ sub www_completeRegistration {
     my $self    = shift;
     my $session = $self->session;
 
+    # If the registration process has been completed display a message stating that.
+    return $self->www_registrationComplete if $self->registrationComplete;
+
+    # Check whether the user is allowed to register.
     return $self->www_noValidUser unless $self->hasValidUser;
 
     # If not all steps are completed yet, go to the step form
-    return $self->www_viewStep unless $self->registrationComplete;
+    return $self->www_viewStep unless $self->registrationStepsComplete;
 
     my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
     my $mailBody        = $mailTemplate->process( {} );
@@ -541,26 +552,49 @@ sub www_login {
     return WebGUI::Operation::Auth::www_auth($session, 'init');
 }
 
-##-------------------------------------------------------------------
-#sub www_do {
-#    my $self    = shift;
-#    my $session = shift;
-#    
-#    #### TODO: Auth
-#
-#    my $method  = 'www_' . $session->form->process('do');
-#    my $stepId  = $session->form->process('stepId');
-#
-#    return "Illegal method [$method]" unless $method =~ /^[\w_]+$/;
-#
-#    my $step = eval {
-#        WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-#    };
-#
-#    return "Unable to do method [$method]" unless $step->can( $method );
-#
-#    return $step->$method();
-#}
+#-------------------------------------------------------------------
+sub www_noValidUser {
+    my $self    = shift;
+    my $session = $self->session;
+    
+    if ($self->hasValidUser || $self->user->userId eq '1') {
+        # Set site status flag to setup
+        $self->setRegistrationStatus('setup');
+    }
+    else {
+        return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
+    }
+
+    # If user is Visitor he'll have to log in. Make sure that he's redirected to the correct place after doing
+    # that.
+    if ($session->user->userId eq '1') {
+        $session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
+    }
+
+    my $var;
+    $var->{ login_button            } =
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                     } )
+        . WebGUI::Form::submit($session, {                      value => 'Inloggen'                 } )
+        . WebGUI::Form::formFooter($session);
+    $var->{ login_url               } = $session->url->page('func=login');
+    $var->{ createAccount_button    } =
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'createAccount'            } )
+        . WebGUI::Form::submit($session, {                      value => 'Account aanmaken'         } )
+        . WebGUI::Form::formFooter($session);
+    $var->{ createAccount_url       } = $session->url->page('func=createAccount');
+    $var->{ proceed_button          } =
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'getProfileCategoryData'   } )
+        . WebGUI::Form::submit($session, {                      value => 'Volgende stap'            } )
+        . WebGUI::Form::formFooter($session);
+    $var->{ proceed_url             } = $session->url->page('func=getProfileCategoryData');
+    $var->{ isVisitor               } = ($session->user->userId eq '1');
+
+    my $template = WebGUI::Asset::Template->new($self->session, $self->get('noValidUserTemplateId'));
+    return $self->processStyle( $template->process($var) );
+}
 
 #-------------------------------------------------------------------
 sub www_viewStep {
@@ -622,49 +656,6 @@ sub www_viewStepSave {
     return $self->www_viewStep;
 }
 
-#-------------------------------------------------------------------
-sub www_noValidUser {
-    my $self    = shift;
-    my $session = $self->session;
-    
-    if ($self->hasValidUser || $self->user->userId eq '1') {
-        # Set site status flag to setup
-        $self->setRegistrationStatus('setup');
-    }
-    else {
-        return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
-    }
-
-    # If user is Visitor he'll have to log in. Make sure that he's redirected to the correct place after doing
-    # that.
-    if ($session->user->userId eq '1') {
-        $session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
-    }
-
-    my $var;
-    $var->{ login_button            } =
-        WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                     } )
-        . WebGUI::Form::submit($session, {                      value => 'Inloggen'                 } )
-        . WebGUI::Form::formFooter($session);
-    $var->{ login_url               } = $session->url->page('func=login');
-    $var->{ createAccount_button    } =
-        WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'createAccount'            } )
-        . WebGUI::Form::submit($session, {                      value => 'Account aanmaken'         } )
-        . WebGUI::Form::formFooter($session);
-    $var->{ createAccount_url       } = $session->url->page('func=createAccount');
-    $var->{ proceed_button          } =
-        WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'getProfileCategoryData'   } )
-        . WebGUI::Form::submit($session, {                      value => 'Volgende stap'            } )
-        . WebGUI::Form::formFooter($session);
-    $var->{ proceed_url             } = $session->url->page('func=getProfileCategoryData');
-    $var->{ isVisitor               } = ($session->user->userId eq '1');
-
-    my $template = WebGUI::Asset::Template->new($self->session, $self->get('noValidUserTemplateId'));
-    return $self->processStyle( $template->process($var) );
-}
 
 #-------------------------------------------------------------------   
 sub www_view {
@@ -674,6 +665,12 @@ sub www_view {
     return $self->SUPER::www_view;
 }
 
+#-------------------------------------------------------------------
+sub www_registrationComplete {
+    my $self = shift;
+
+    return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
+}
 
 1;
 
