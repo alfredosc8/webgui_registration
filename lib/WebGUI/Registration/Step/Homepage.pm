@@ -170,11 +170,6 @@ sub installUserPage {
     my $userGroup;
 
     # Deploy package under a seperate version tag.
-    my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
-    my $tempVersionTag      = WebGUI::VersionTag->create($session, {
-        name    => 'Installation of user pages for '.$user->username,
-    });
-    $tempVersionTag->setWorking;
 
     #### TODO: Check if a user object has been instanciated.
 
@@ -245,9 +240,7 @@ sub installUserPage {
         $self->setExportVariable( 'deployedPageRoot', $deployedTreeMaster->getId );
     }
  
-    # Commit the tag and return the user to their previous tag
-    $tempVersionTag->commit;
-    $currentVersionTag->setWorking if (defined $currentVersionTag);
+
 }
 
 

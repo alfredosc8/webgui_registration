@@ -212,12 +212,35 @@ sub www_editRegistrationInstanceDataSave {
     # Return to edit screen with errors if an error occurred.
     return www_editRegistrationInstanceData( $session, \@error ) if @error;
 
-    # No errors occurred, so apply the registration steps.
+    
+    # ----- No errors occurred, so continue to apply the registration steps. -----
+    
+    # Save the current version tag so that we can the user to his current tag after the application process.
+    my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
+
+    # Create a separate tag for the conntent applied by the registration steps.
+    my $tempVersionTag      = WebGUI::VersionTag->create($session, {
+        name    => 'Installation of user pages for '.$registration->user->username,
+    });
+    $tempVersionTag->setWorking;
+    
+    # Apply the resgitration steps 
     foreach my $step ( @{ $steps } ) {
         $step->apply;
     }
 
-    return "OK!";
+    # Commit the tag if it contains any content, otherwise delete it.
+    if ( $tempVersionTag->getAssetCount > 0 ) {
+        $tempVersionTag->commit;
+    }
+    else {
+        $tempVersionTag->rollback;
+    }
+
+    # Return the user to the version tag he was in.
+    $currentVersionTag->setWorking if (defined $currentVersionTag);
+    
+    return www_listPendingRegistrations( $session );
 }
 
 #-------------------------------------------------------------------
