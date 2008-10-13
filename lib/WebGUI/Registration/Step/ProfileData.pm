@@ -8,6 +8,31 @@ use List::Util qw{ first };
 use base qw{ WebGUI::Registration::Step };
 
 #-------------------------------------------------------------------
+sub apply {
+    my $self    = shift;
+    my $session = $self->session;
+    my $user    = $self->registration->user;
+
+    # Get entered profile data
+    my $profileSteps = $self->get('profileSteps');
+    my @categories = map    { $profileSteps->{$_} } 
+                     sort 
+                     grep   /^profileStep\d\d?$/, 
+                            keys %$profileSteps;
+    
+    my $configurationData = $self->getConfigurationData;
+
+    foreach my $categoryId ( @categories ) {
+        my $category = WebGUI::ProfileCategory->new( $session, $categoryId );
+   
+        my $fieldData = $configurationData->{ $categoryId };
+        foreach my $fieldId ( keys %{ $fieldData } ) {
+            $user->profileField( $fieldId, $fieldData->{ $fieldId });
+        }
+    }
+}
+
+#-------------------------------------------------------------------
 sub definition {
     my $class       = shift;
     my $session     = shift;
@@ -152,13 +177,14 @@ sub getSummaryTemplateVars {
         my $category = WebGUI::ProfileCategory->new($session, $categoryId);
 
         next unless $category->getLabel;
-      
+
+        my $fieldData = $self->getConfigurationData->{ $categoryId };
         my @fields;
         foreach my $field (@{ $category->getFields }) {
             push(@fields, {
                 field_label         => $field->getLabel,
-                field_value         => $field->formField(undef, 2, $user),
-                field_formElement   => $field->formField(undef, 0, $user),
+                field_value         => $fieldData->{ $field->getId },               #$field->formField(undef, 2, $user),
+                field_formElement   => $field->formField(undef, 0, $user, 0, $fieldData->{ $field->getId }),
             });
         }
 
@@ -205,7 +231,8 @@ sub processCategoryDataFromFormPost {
     #### TODO: Throw exception on categoryId.
 
     my $profileOverrides = $self->get('profileOverrides');
-
+    my $profileData      = $self->getConfigurationData->{ $categoryId } || {};
+ 
     # Instanciate category.
     my $category = WebGUI::ProfileCategory->new( $session, $categoryId );
     
@@ -221,9 +248,12 @@ sub processCategoryDataFromFormPost {
         else {
             # TODO: Wellicht ook iets doen als: error if (form->param('field') && !$profileFieldData)
             # TODO: Check if arrays are saved correctly
-            $user->profileField($field->getId, $profileFieldData);
+            $profileData->{ $field->getId } = $profileFieldData;
+#            $user->profileField($field->getId, $profileFieldData);
         }
     }
+
+    $self->setConfigurationData( $categoryId, $profileData );
 }
 
 #-------------------------------------------------------------------
@@ -335,15 +365,15 @@ sub getViewVars {
 
     my $var = $self->SUPER::getViewVars;
 
-
-    my $category = WebGUI::ProfileCategory->new($self->session, $categoryId);
+    my $category    = WebGUI::ProfileCategory->new($self->session, $categoryId);
+    my $fieldData   = $self->getConfigurationData->{ $categoryId };
     foreach my $field (@{ $category->getFields }) {
         next unless $field->get('visible');
 
         # Add form element to field loop
         push @{ $var->{ field_loop } }, {
             field_label         => $field->getLabel,
-            field_formElement   => $field->formField( {}, 0, $user ),
+            field_formElement   => $field->formField( {}, 0, $user, 0, $fieldData->{ $field->getId } ),
             field_subtext       => $profileOverrides->{ $field->getId }->{ comment  },
             field_isRequired    => $profileOverrides->{ $field->getId }->{ required },
         }

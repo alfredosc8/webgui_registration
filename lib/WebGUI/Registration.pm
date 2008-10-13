@@ -14,7 +14,7 @@ readonly session            => my %session;
 readonly registrationId     => my %registrationId;
 readonly registrationSteps  => my %registrationSteps;
 readonly options            => my %options;
-readonly user               => my %user;
+public   user               => my %user;
 
 #-------------------------------------------------------------------
 sub definition {
@@ -110,6 +110,7 @@ sub _buildObj {
     );
 
     # TODO: Check whether userId exists.
+    $userId = 1 if $userId eq 'new';
     my $user = WebGUI::User->new( $session, $userId );
 
     # --- Setup InsideOut object --------------------------------

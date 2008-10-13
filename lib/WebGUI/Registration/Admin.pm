@@ -17,7 +17,11 @@ sub adminConsole {
     my $registrationId = $session->stow->get('admin_registrationId');
 
     $ac->addSubmenuItem( $session->url->page('registration=admin;func=view'), 'List registrations');
-    $ac->addSubmenuItem( $session->url->page('registration=admin;func=listSteps;registrationId='.$registrationId), 'List registration steps');    
+    $ac->addSubmenuItem( $session->url->page('registration=admin;func=listSteps;registrationId='.$registrationId), 'List registration steps');
+    $ac->addSubmenuItem(
+        $session->url->page('registration=admin;func=editRegistrationInstanceData;userId=new;registrationId='.$registrationId),
+        'Add a new account'
+    );
 
     return $ac->render( $content, $title );
 }
@@ -109,33 +113,6 @@ sub www_editRegistrationSave {
 }
 
 #-------------------------------------------------------------------
-sub www_listPendingRegistrations {
-    my $session = shift;
-
-    my $registrationId  = $session->form->process( 'registrationId' );
-
-    my @userIds = $session->db->buildArray("select userId from Registration_status where status='pending'and registrationId=?", [
-        $registrationId,
-    ]);
-
-    my $output ; #= '<h1>Accounts waiting for approval</h1>';
-    $output .= '<table>';
-    foreach (@userIds) {
-        my $user = WebGUI::User->new($session, $_);
-
-        $output .= '<tr><td><a href="'.$session->url->page('func=deleteAccount;uid='.$_).'">DELETE</a></td>';
-        $output .= '<td><a href="'
-            .
-            $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
-            .'">EDIT</a></td>';
-        $output .= '<td>'.$user->username.'</td>'; #<td>'.$user->profileField('homepageUrl').'</td></tr>';
-    }
-    $output .= '</table>';
-
-    return adminConsole( $session, $output, 'Pending accounts' );
-}
-
-#-------------------------------------------------------------------
 sub www_editRegistrationInstanceData {
     my $session = shift;
     my $error   = shift || [];
@@ -145,7 +122,7 @@ sub www_editRegistrationInstanceData {
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
     my $steps           = $registration->getSteps;
-    my $user            = WebGUI::User->new( $session, $userId );
+    my $user            = WebGUI::User->new( $session, $userId ) unless $userId eq 'new';
 
     my $f = WebGUI::HTMLForm->new( $session );
     $f->hidden(
@@ -164,10 +141,25 @@ sub www_editRegistrationInstanceData {
         name    => 'func',
         value   => 'editRegistrationInstanceDataSave',
     );
-    $f->readOnly(
+
+    # User account properties
+    my $username    = $session->form->process('username');
+    $username     ||= $registration->user->username unless $userId eq 'new';
+    my $email       = $session->form->process('email'); 
+    $email        ||= $registration->user->profileField('email') unless $userId eq 'new';
+    $f->fieldSetStart( 'Account Data' );
+    $f->text(
+        name    => 'username',
         label   => 'Username',
-        value   => $user->username,
+        value   => $username,
     );
+    $f->email(
+        name    => 'email',
+        label   => 'Email',
+        value   => $email,
+    );
+    $f->raw(WebGUI::Operation::Auth::getInstance( $session, 'WebGUI', $userId )->editUserForm);
+    $f->fieldSetEnd;
 
     foreach my $step ( @{ $steps } ) {
         foreach my $category ( $step->getSummaryTemplateVars( 1 ) ) {
@@ -196,35 +188,69 @@ sub www_editRegistrationInstanceData {
 sub www_editRegistrationInstanceDataSave {
     my $session = shift;
 
+    my @error;
+
+    # ========== Process account data =================================
+    my $username        = $session->form->process( 'username'   );
+    my $email           = $session->form->process( 'email'      );
+    my $userId          = $session->form->process( 'userId'     );
+    my $userByUserId    = WebGUI::User->new(            $session, $userId   ) unless $userId eq 'new';
+    my $userByUsername  = WebGUI::User->newByUsername(  $session, $username );
+    my $userByEmail     = WebGUI::User->newByEmail(     $session, $email    );
+
+    # Check for valid userId
+    if ( $userId ne 'new' && !$userByUserId ) {
+        push @error, "Invalid userId: [$userId]";
+    }
+
+    # Check for duplicate username
+    if ( $userByUsername && ( $userByUsername->userId ne $userId ) ) {
+        push @error, 'Username already exists.';
+    }
+
+    # Check for duplicate email
+    if ( $userByEmail && ( $userByEmail->userId ne $userId ) ) {
+        push @error, 'Email address is already in use by user: ' . $userByEmail->username;
+    }
+
+    # ========== Process and error check submitted form data. ==========
     my $registrationId  = $session->form->process( 'registrationId' );
-    my $userId          = $session->form->process( 'userId'         );
     my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
     my $steps           = $registration->getSteps;
 
-    my @error;
-    # Process and error check submitted form data.
     foreach my $step ( @{ $steps } ) {
         $step->processStepApprovalData;
 
         push @error, @{ $step->error };
     }
 
-    # Return to edit screen with errors if an error occurred.
+    # ========== Return to edit screen with errors if an error occurred.
     return www_editRegistrationInstanceData( $session, \@error ) if @error;
 
     
-    # ----- No errors occurred, so continue to apply the registration steps. -----
+    # ========== No errors occurred ====================================
+    # Instanciate or create user
+    my $user = WebGUI::User->new( $session, $userId );
+    $user->username( $username );
+    $user->profileField( 'email', $email );
+
+    # Apply auth plugin stuff
+    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
+    $authInstance->editUserFormSave;
     
+    # Set the registration object to use the instanciated user
+    $registration->user( $user );
+
     # Save the current version tag so that we can the user to his current tag after the application process.
     my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
 
-    # Create a separate tag for the conntent applied by the registration steps.
+    # Create a separate tag for the content applied by the registration steps.
     my $tempVersionTag      = WebGUI::VersionTag->create($session, {
         name    => 'Installation of user pages for '.$registration->user->username,
     });
     $tempVersionTag->setWorking;
     
-    # Apply the resgitration steps 
+    # Apply the registration steps 
     foreach my $step ( @{ $steps } ) {
         $step->apply;
     }
@@ -268,6 +294,34 @@ sub www_editStepSave {
     $step->processPropertiesFromFormPost;
 
     return www_listSteps( $session, $step->registration->registrationId );
+}
+
+#-------------------------------------------------------------------
+sub www_listPendingRegistrations {
+    my $session = shift;
+
+    my $registrationId  = $session->form->process( 'registrationId' );
+    $session->stow->set('admin_registrationId', $registrationId);
+
+    my @userIds = $session->db->buildArray("select userId from Registration_status where status='pending'and registrationId=?", [
+        $registrationId,
+    ]);
+
+    my $output ; #= '<h1>Accounts waiting for approval</h1>';
+    $output .= '<table>';
+    foreach (@userIds) {
+        my $user = WebGUI::User->new($session, $_);
+
+        $output .= '<tr><td><a href="'.$session->url->page('func=deleteAccount;uid='.$_).'">DELETE</a></td>';
+        $output .= '<td><a href="'
+            .
+            $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
+            .'">EDIT</a></td>';
+        $output .= '<td>'.$user->username.'</td>'; #<td>'.$user->profileField('homepageUrl').'</td></tr>';
+    }
+    $output .= '</table>';
+
+    return adminConsole( $session, $output, 'Pending accounts' );
 }
 
 #-------------------------------------------------------------------
