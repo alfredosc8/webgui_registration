@@ -572,7 +572,7 @@ sub www_viewStep {
     my $output;
 
     # Set site status
-    $self->setRegistrationStatus( 'pending' );
+    $self->setRegistrationStatus( 'setup' );
 
     # Get current step
     my $currentStep = $self->getCurrentStep;
