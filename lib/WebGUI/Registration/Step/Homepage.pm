@@ -134,6 +134,31 @@ sub getSummaryTemplateVars {
 }
 
 #-------------------------------------------------------------------
+sub getViewVars {
+    my $self = shift;
+
+    my $var = $self->SUPER::getViewVars;
+    
+    my $preferredHomepageUrl = 
+        $self->session->form->process('preferredHomepageUrl')  
+        || $self->getConfigurationData->{'preferredHomepageUrl'};
+
+    push @{ $var->{ field_loop } }, (
+        {
+            field_label         => 'www.wieismijnarts.nl/',
+            field_formElement   => 
+                WebGUI::Form::text($self->session, { 
+                    name    => 'preferredHomepageUrl', 
+                    value   => $preferredHomepageUrl
+                }),
+#           field_subtext   => 'Hier komt de subtext voor dit veld'
+        }
+    );
+
+    return $var;
+}
+
+#-------------------------------------------------------------------
 sub installUserPage {
     my $self        = shift;
     my $parameters  = shift;
@@ -263,64 +288,5 @@ sub processStepFormData {
     # Store homepage url
     $self->setConfigurationData('preferredHomepageUrl', $url );
 }
-
-#-------------------------------------------------------------------
-sub view {
-    my $self = shift;
-
-    my $registrationId = $self->registration->registrationId;
-    my $preferredHomepageUrl = 
-        $self->session->form->process('preferredHomepageUrl')  
-        || $self->getConfigurationData->{'preferredHomepageUrl'};
-
-    my $f = WebGUI::HTMLForm->new($self->session);
-    $f->hidden(
-        -name   => 'func',
-        -value  => 'viewStepSave',
-    );
-    $f->hidden(
-        -name   => 'registration',
-        -value  => 'register',
-    );
-    $f->hidden(
-        -name   => 'registrationId',
-        -value  => $registrationId,
-    );
-    $f->text(
-        -name   => 'preferredHomepageUrl',
-        -label  => 'www.wieismijnarts.nl/',
-        -value  => $preferredHomepageUrl   
-    );
-    $f->submit;
-
-    my $var;
-    $var->{ category_name   } = 'Naam van uw site';
-    $var->{ comment         } = $self->get('comment');
-    $var->{ form            } = $f->print;
-    $var->{ form_header     } =
-        WebGUI::Form::formHeader($self->session)
-        . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
-        . WebGUI::Form::hidden($self->session, { name => 'registration',    value => 'register'             } ) 
-        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $registrationId        } );
-
-    $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
-    $var->{ field_loop      } = 
-        [
-            {
-                field_label         => 'www.wieismijnarts.nl/',
-                field_formElement   => 
-                    WebGUI::Form::text($self->session, { 
-                        name    => 'preferredHomepageUrl', 
-                        value   => $preferredHomepageUrl
-                    }),
-#                field_subtext   => 'Hier komt de subtext voor dit veld'
-            }
-        ];
-    $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
-
-    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
-    return $template->process($var);
-}
-
 
 1;

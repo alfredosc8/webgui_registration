@@ -318,7 +318,7 @@ sub processStepApprovalData {
 }
 
 #-------------------------------------------------------------------
-sub view {
+sub getViewVars {
     my $self    = shift;
     my $user    = shift || $self->registration->user;
 
@@ -333,37 +333,15 @@ sub view {
     my $currentStep = { reverse %$profileSteps }->{ $categoryId };
     $currentStep    =~ s{^profileStep(\d+)$}{$1} || 1;
 
-    # Setup HTMLForm 
-    my $f = WebGUI::HTMLForm->new($self->session);
-    $f->hidden(
-        -name   => 'func',
-        -value  => 'viewStepSave',
-    );
-    $f->hidden(
-        -name   => 'registration',
-        -value  => 'register',
-    );
-    $f->hidden(
-        -name   => 'registrationId',
-        -value  => $registrationId,
-    );
-    $f->hidden(
-        -name   => 'categoryId',
-        -value  => $categoryId,
-    );
+    my $var = $self->SUPER::getViewVars;
 
-    my @fieldLoop;
+
     my $category = WebGUI::ProfileCategory->new($self->session, $categoryId);
     foreach my $field (@{ $category->getFields }) {
         next unless $field->get('visible');
 
-        # Add form element to HTMLForm
-        $f->raw(
-            $field->formField({}, 1, $user),
-        );
-
         # Add form element to field loop
-        push @fieldLoop, {
+        push @{ $var->{ field_loop } }, {
             field_label         => $field->getLabel,
             field_formElement   => $field->formField( {}, 0, $user ),
             field_subtext       => $profileOverrides->{ $field->getId }->{ comment  },
@@ -371,25 +349,13 @@ sub view {
         }
     }
 
-    $f->submit( -value => 'Volgende stap' );
-
     # Setup tmpl_vars
-    my $var;
     $var->{ category_name   } = $category->getLabel;
     $var->{ comment         } = $profileSteps->{ "profileStepComment".$currentStep };
-    $var->{ form            } = $f->print;
-    $var->{ field_loop      } = \@fieldLoop;
-    $var->{ form_header     } = 
-        WebGUI::Form::formHeader($self->session)
-        . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
-        . WebGUI::Form::hidden($self->session, { name => 'registration',    value => 'register'             } ) 
-        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $registrationId        } )
-        . WebGUI::Form::hidden($self->session, { name => 'categoryId',  value => $categoryId                } );
-    $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
-    $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
+    $var->{ form_header     } .= 
+        WebGUI::Form::hidden($self->session, { name => 'categoryId',  value => $categoryId } );
 
-    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
-    return $template->process($var);
+    return $var;
 }
 
 1;

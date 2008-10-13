@@ -225,67 +225,30 @@ sub isComplete {
 }
 
 #-------------------------------------------------------------------
-sub view {
+sub getViewVars {
     my $self            = shift;
     my $registrationId  = $self->registration->registrationId;
 
-    my $f = WebGUI::HTMLForm->new($self->session);
-    $f->hidden(
-        -name   => 'func',
-        -value  => 'viewStepSave',
-    );
-    $f->hidden(
-        -name   => 'registration',
-        -value  => 'register',
-    );
-    $f->hidden(
-        -name   => 'registrationId',
-        -value  => $registrationId,
-    );
-
+    my $var         = $self->SUPER::getViewVars;
+    my $sourceCSs   = $self->getSourceCSs;
     my @selectedCSs = 
         $self->session->form->process('addCS') 
         || @{ $self->getConfigurationData->{selectedCSs}  || [] };
 
-    my $sourceCSs   = $self->getSourceCSs;
-
-    if ( $sourceCSs ) {
-        $f->selectList(
-            -name       => 'addCS',
-            -value      => \@selectedCSs,
-            -label      => 'Kies een specialisme',
-            -options    => $sourceCSs,
-            -height     => 5,
-        );
-    }
-    $f->submit;
-
-    my $var;
-
-    $var->{ category_name   } = 'Kies een specialisme';
-    $var->{ comment         } = $self->get('importCategoriesComment');
-    $var->{ form            } = $f->print;
-    $var->{ form_header     } =
-        WebGUI::Form::formHeader($self->session)
-        . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
-        . WebGUI::Form::hidden($self->session, { name => 'registration',    value => 'register'             } ) 
-        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $registrationId        } );
-    $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
-    $var->{ field_loop      } = 
-        [ {
-            field_label         => 'Kies een specialisme',
-            field_formElement   => 
-                WebGUI::Form::selectList($self->session, { 
-                    name    => 'addCS', 
-                    value   => \@selectedCSs,
-                    options => $sourceCSs,
-                    height  => 5,
-                }),
+    # Add form field
+    push @{ $var->{ field_loop } }, {
+        field_label         => 'Kies een specialisme',
+        field_formElement   => 
+            WebGUI::Form::selectList($self->session, { 
+                name    => 'addCS', 
+                value   => \@selectedCSs,
+                options => $sourceCSs,
+                height  => 5,
+            }),
 #            field_subtext   => 'Hier komt de subtext voor dit veld'
-        } ];
+    }; 
 
-    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
-    return $template->process($var);
+    return $var;
 }
 
 #-------------------------------------------------------------------
@@ -296,7 +259,7 @@ sub processPropertiesFromFormPost {
     $self->SUPER::processPropertiesFromFormPost;
 
     $self->update( {
-        csContainerRoot         => $session->form->process('csContainerRoot'),
+        csContainerRoot => $session->form->process('csContainerRoot'),
     } );
 }
 

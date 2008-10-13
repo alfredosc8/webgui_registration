@@ -269,6 +269,26 @@ sub getStepForm {
 }
 
 #-------------------------------------------------------------------
+sub getViewVars {
+    my $self            = shift;
+    my $registrationId  = $self->registration->registrationId;
+    
+    my $var;
+    $var->{ category_name   } = 'Naam van uw site';
+    $var->{ comment         } = $self->get('comment');
+    $var->{ form_header     } =
+        WebGUI::Form::formHeader($self->session)
+        . WebGUI::Form::hidden($self->session, { name => 'func',            value => 'viewStepSave'         } )
+        . WebGUI::Form::hidden($self->session, { name => 'registration',    value => 'register'             } ) 
+        . WebGUI::Form::hidden($self->session, { name => 'registrationId',  value => $registrationId        } );
+    $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
+    $var->{ field_loop      } = [ ];
+    $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
+    
+    return $var;
+}
+
+#-------------------------------------------------------------------
 sub newByDynamicClass {
     my $class           = shift;
     my $session         = shift;
@@ -390,6 +410,32 @@ sub pushError {
 
 #-------------------------------------------------------------------
 sub view {
+    my $self = shift;
+
+    my $var = $self->getViewVars;
+
+    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
+    return $template->process($var);
+
+
+#    my $f = WebGUI::HTMLForm->new($self->session);
+#    $f->hidden(
+#        -name   => 'func',
+#        -value  => 'viewStepSave',
+#    );
+#    $f->hidden(
+#        -name   => 'registration',
+#        -value  => 'register',
+#    );
+#    $f->hidden(
+#        -name   => 'registrationId',
+#        -value  => $registrationId,
+#    );
+#    $f->text(
+#        -name   => 'preferredHomepageUrl',
+#        -label  => 'www.wieismijnarts.nl/',
+#        -value  => $preferredHomepageUrl   
+#    );
 
 }
 
