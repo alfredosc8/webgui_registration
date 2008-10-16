@@ -26,6 +26,53 @@ sub adminConsole {
     return $ac->render( $content, $title );
 }
 
+##-------------------------------------------------------------------
+#sub deleteAccount {
+#    my ($output, @deleteGroups);
+#    my $session         = shift;
+#    my $registration    = shift;
+#    my @actions;
+#   
+#    
+#    if ( $session->form->process( 'deleteAccountStatus' ) ) {
+#        $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
+#            $registration->registrationId,
+#            $registration->user->userId,
+#        ]);
+#        push @actions, 'Removing account status';
+#    }
+#    
+#    # Execute workflow
+#    my $workflowId = $registration->get('removeAccountWorkflowId');
+#    if ( $session->form->process( 'executeWorkflow' ) && $workflowId ) {
+#        WebGUI::Workflow::Instance->create($self->session, {
+#            workflowId  => $workflowId,
+#            methodName  => "new",
+#            className   => "WebGUI::User",
+##           mode        => 'realtime',
+#            parameters  => $registration->user->userId,
+#            priority    => 1
+#        });
+#        push @actions, 'Executiong workflow';
+#    }
+#    
+#    # Execute onDelete handlers of step
+#    foreach my $step ( @{ $registration->getSteps } ) {
+#        if ( $session->form->process( 'step_'.$stepId ) ) {
+#            push @actions, $step->onDeleteAccount( 1 );
+#        }
+#    }
+#    
+#    # Remove user account
+#    if ( $session->form->process('removeUseAccount') ) {
+#        $registration->user->delete;
+#        push @actions, 'Removing user account';
+#    }
+#    
+#    my $output = '<ul><li>' . join( '</li><li>', @actions ) . '</li></ul>';
+#    return $output;
+#}    
+
 #-------------------------------------------------------------------
 sub www_addRegistration {
     my $session = shift;
@@ -57,6 +104,122 @@ sub www_addStep {
     #### TODO: catch exception
 
     return adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_deleteAccount {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $userId          = $session->form->param('uid');
+    my $registrationId  = $session->form->param('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
+
+    my $output = 'If you proceed the following checked properties will be deleted:<br />';
+
+    # Setup available deletion steps
+    my $deleteSteps;
+    $deleteSteps->{ deleteAccountStatus     } = 'Account status';
+    $deleteSteps->{ executeWorkflow         } = 'Execute account removal workflow';
+    $deleteSteps->{ deleteUserAccount       } = 'Remove user account';
+
+    foreach my $step ( @{ $registration->getSteps } ) {
+        my $deleteMessage = eval { $step->onDeleteAccount };
+        next unless $@;
+
+        $deleteSteps->{ 'step_' . $step->stepId } = $deleteMessage if $deleteMessage;
+    }
+
+    # Setup Form
+    $output .= 
+        WebGUI::Form::formHeader($session)
+        . WebGUI::Form::hidden( $session, { name => 'registration',     value => 'admin'                } )
+        . WebGUI::Form::hidden( $session, { name => 'registrationId',   value => $registrationId        } )
+        . WebGUI::Form::hidden( $session, { name => 'func',             value => 'deleteAccountConfirm' } )
+        . WebGUI::Form::hidden( $session, { name => 'uid',              value => $userId                } )
+        ;
+
+    # Wrap deletion steps into the form
+    $output .= '<ul><li>';
+    $output .=  join    '</li><li>', 
+                map     { 
+                            WebGUI::Form::checkbox( $session, { name => $_, value => 1, checked => 1 } )
+                            . $deleteSteps->{ $_ }
+                        }
+                keys    %$deleteSteps
+                ;
+    $output .= '</li></ul>';
+    $output .= WebGUI::Form::submit($session, {value => "Delete checked properties"});
+    $output .= WebGUI::Form::formFooter($session);
+
+    $output .= '<br /><b><a href="' 
+        . $session->url->page('registration=admin;func=listPendingRegistrations;registrationId='.$registrationId) 
+        . '">Cancel and return to account list</a></b><br />';
+
+    return adminConsole( $session, $output, 'Delete account' );
+}
+
+#-------------------------------------------------------------------
+sub www_deleteAccountConfirm {
+    my $session = shift;
+    my @actions;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $userId          = $session->form->param('uid');
+    my $registrationId  = $session->form->param('registrationId');
+    my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
+  
+    # Execute workflow
+    my $workflowId = $registration->get('removeAccountWorkflowId');
+    if ( $session->form->process( 'executeWorkflow' ) && $workflowId ) {
+        WebGUI::Workflow::Instance->create($session, {
+            workflowId  => $workflowId,
+            methodName  => "new",
+            className   => "WebGUI::User",
+#           mode        => 'realtime',
+            parameters  => $registration->user->userId,
+            priority    => 1
+        });
+        push @actions, 'Executiong workflow';
+    }
+    
+    # Execute onDelete handler of each step
+    foreach my $step ( @{ $registration->getSteps } ) {
+        if ($session->form->process( 'step_'.$step->stepId ) ) {
+            my $message = eval{ $step->onDeleteAccount( 1 ) };
+            if ($@) {
+                $message = 
+                    'Error occured while deleting step '. $step->get('title') 
+                    . ' of type ' . $step->namespace
+                    . " with the following message: '$@, $!'";
+            }
+            push @actions, $message;
+        }
+    }
+    
+    # Remove user account
+    if ( $session->form->process('deleteUserAccount') ) {
+        $registration->user->delete;
+        push @actions, 'Removing user account';
+    }
+
+    # Delete account status
+    if ( $session->form->process( 'deleteAccountStatus' ) ) {
+        $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
+            $registration->registrationId,
+            $registration->user->userId,
+        ]);
+        push @actions, 'Removing account status';
+    }
+ 
+    my $output = 
+        'Removing account:<br />'
+        . '<ul><li>' . join( '</li><li>', @actions ) . '</li></ul>'
+        . '<a href="' . $session->url->page . '">Return to account list</a>';
+
+    return adminConsole( $session, $output, 'Account deleted' );
 }
 
 #-------------------------------------------------------------------
@@ -303,7 +466,7 @@ sub www_listPendingRegistrations {
     my $registrationId  = $session->form->process( 'registrationId' );
     $session->stow->set('admin_registrationId', $registrationId);
 
-    my @userIds = $session->db->buildArray("select userId from Registration_status where status='pending'and registrationId=?", [
+    my @userIds = $session->db->buildArray("select userId from Registration_status where status='pending' and registrationId=?", [
         $registrationId,
     ]);
 
@@ -312,11 +475,11 @@ sub www_listPendingRegistrations {
     foreach (@userIds) {
         my $user = WebGUI::User->new($session, $_);
 
-        $output .= '<tr><td><a href="'.$session->url->page('func=deleteAccount;uid='.$_).'">DELETE</a></td>';
+        $output .= '<tr><td><a href="'
+            . $session->url->page('registration=admin;registrationId='.$registrationId.';func=deleteAccount;uid='.$_).'">DELETE</a></td>';
         $output .= '<td><a href="'
-            .
-            $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
-            .'">EDIT</a></td>';
+            . $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
+            . '">EDIT</a></td>';
         $output .= '<td>'.$user->username.'</td>'; #<td>'.$user->profileField('homepageUrl').'</td></tr>';
     }
     $output .= '</table>';

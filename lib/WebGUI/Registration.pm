@@ -80,6 +80,16 @@ sub definition {
             tab         => 'display',
             label       => 'Site approval nofication mail template',
         },
+        removeAccountWorkflowId=> {
+            fieldType           => 'workflow',
+            type                => 'WebGUI::User',
+            includeRealtime     => 1,
+            none                => 1,
+            tab                 => 'security',
+            label               => 'Run workflow on account removal',
+         },
+
+
  
     );
 

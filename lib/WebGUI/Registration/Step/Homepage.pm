@@ -238,6 +238,7 @@ sub installUserPage {
         }
 
         $self->setExportVariable( 'deployedPageRoot', $deployedTreeMaster->getId );
+        $self->setConfigurationData( 'deployedPageRoot', $deployedTreeMaster->getId );
     }
  
 
@@ -249,6 +250,31 @@ sub isComplete {
     my $self = shift;
 
     return defined $self->getConfigurationData->{'preferredHomepageUrl'};
+}
+
+#-------------------------------------------------------------------
+sub onDeleteAccount {
+    my $self    = shift;
+    my $doit    = shift;
+    my $session = $self->session;
+    my $output;
+
+    # Delete user homepage
+    my $userPageRoot = WebGUI::Asset->newByDynamicClass( $session, $self->getConfigurationData->{ 'deployedPageRoot' } );
+
+    # Make really sure the asset we got is the correct one and not for instance the default 404 page.
+    if ( $userPageRoot->getId eq $self->getConfigurationData->{ 'deployedPageRoot' } ) {
+        $output = 'Homepage: '.$userPageRoot->getUrl;
+
+        $userPageRoot->purge if $doit;
+    }
+    else {
+        $output = 'Homepage: not found.';
+    }
+
+    $self->SUPER::onDeleteAccount( $doit );
+
+    return $output;
 }
 
 #-------------------------------------------------------------------

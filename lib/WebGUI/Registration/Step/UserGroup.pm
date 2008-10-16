@@ -101,5 +101,36 @@ sub isInvisible {
     return 1;
 }
 
+#-------------------------------------------------------------------
+sub onDeleteAccount {
+    my $self    = shift;
+    my $doit    = shift;
+    my $session = $self->session;
+    my @deleteGroups;
+
+    # Fetch usergroup(s) to delete
+    my $groups = $self->registration->user->getGroups;
+    foreach my $groupId ( @{ $groups } ) {
+        my $group = WebGUI::Group->new( $session, $groupId );
+        if (scalar(@{ $group->getUsers }) <= 1) {
+            push @deleteGroups, $group;
+        }
+    }
+    
+    # Construct removal message
+    my $message = 'Groups: '. join(', ', map {$_->name} @deleteGroups);
+
+    # Remove groups if doit
+    if ($doit) {
+        $_->delete for (@deleteGroups);
+    }    
+
+    # Clean up step data
+    $self->SUPER::onDeleteAccount( $doit );
+
+    # Return notification string.
+    return $message; 
+}
+
 1;
 

@@ -29,6 +29,11 @@ CREATE TABLE `Registration` (
   `confirmationTemplateId` varchar(22) default NULL,
   `registrationCompleteTemplateId` varchar(22) default NULL,
   `noValidUserTemplateId` varchar(22) default NULL,
+  `setupCompleteMailTemplateId` varchar(22) default NULL,
+  `setupCompleteMailSubject` varchar(255) default NULL,
+  `siteApprovalMailTemplateId` varchar(22) default NULL,
+  `siteApprovalMailSubject` varchar(255) default NULL,
+  `removeAccountWorkflowId` varchar(22) default NULL,
   PRIMARY KEY  (`registrationId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
@@ -80,4 +85,4 @@ CREATE TABLE `Registration_status` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2008-10-10 10:00:12
+-- Dump completed on 2008-10-16  8:55:36

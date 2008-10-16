@@ -327,6 +327,13 @@ sub isInvisible {
 }
 
 #-------------------------------------------------------------------
+sub namespace {
+    my $self    = shift;
+
+    return $self->definition( $self->session )->[0]->{ namespace };
+}
+
+#-------------------------------------------------------------------
 sub new {
     my $class           = shift;
     my $session         = shift;
@@ -351,6 +358,24 @@ sub new {
     my $self = $class->_buildObj( $session, $stepId, $registration, decode_json( $properties->{ options } ) );
 
     return $self;
+}
+
+#-------------------------------------------------------------------
+sub onDeleteAccount {
+    my $self    = shift;
+    my $doit    = shift;
+    my $session = $self->session;
+
+    # Don't do anything when we are still reviewing.
+    return unless $doit;
+
+    # Delete step data
+    $session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
+        $self->stepId,
+        $self->registration->user->userId,
+    ]);
+
+    return;
 }
 
 #-------------------------------------------------------------------
