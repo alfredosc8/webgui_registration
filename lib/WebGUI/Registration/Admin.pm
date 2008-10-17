@@ -349,6 +349,7 @@ sub www_editRegistrationInstanceData {
 }
 
 #-------------------------------------------------------------------
+#### TODO: Deze code moet eigenlijk naar WG::Registration
 sub www_editRegistrationInstanceDataSave {
     my $session = shift;
 
@@ -430,6 +431,17 @@ sub www_editRegistrationInstanceDataSave {
     # Return the user to the version tag he was in.
     $currentVersionTag->setWorking if (defined $currentVersionTag);
     
+    # Run workflow on account creation.
+    if ($self->get('newAccountWorkflowId')) {
+        WebGUI::Workflow::Instance->create($session, {
+            workflowId  => $self->get('newAccountWorkflowId'),
+            methodName  => "new",
+            className   => "WebGUI::User",
+            parameters  => $user->userId,
+            priority    => 1
+        });
+    } 
+
     return www_listPendingRegistrations( $session );
 }
 
