@@ -5,6 +5,7 @@ use WebGUI::Registration;
 use WebGUI::Registration::Step;
 use WebGUI::AdminConsole;
 
+use Data::Dumper;
 
 #-------------------------------------------------------------------
 sub adminConsole {
@@ -501,6 +502,8 @@ sub www_listSteps {
     foreach my $step ( @{ $steps } ) {
         $output .= '<li>'
             . $session->icon->delete('registration=admin;func=deleteStep;stepId='.$step->stepId.';registrationId='.$registrationId)
+            . $session->icon->moveUp('registration=admin;func=moveStepUp;stepId='.$step->stepId.';registrationId='.$registrationId)
+            . $session->icon->moveDown('registration=admin;func=moveStepDown;stepId='.$step->stepId.';registrationId='.$registrationId)
             . '<a href="'
             .   $session->url->page('registration=admin;func=editStep;stepId='.$step->stepId.';registrationId='.$registrationId)
             . '">'
@@ -522,6 +525,70 @@ sub www_listSteps {
     $output .= "<li>$addForm</li>";
 
     return adminConsole( $session, $output, 'Edit registration steps for ' . $registration->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_moveStepDown {
+    my $session = shift;
+    my $stepId  = $session->form->process( 'stepId' );
+
+    my $thisStep        = $session->db->quickHashRef('select * from RegistrationStep where stepId=?', [
+        $stepId,
+    ]);
+
+    my $previousStep    = $session->db->quickHashRef(
+        'select * from RegistrationStep where registrationId=? and stepOrder > ? order by stepOrder asc limit 1', [
+            $thisStep->{ registrationId },
+            $thisStep->{ stepOrder      },
+        ]
+    );
+
+    # Last step already
+    return www_listSteps( $session ) unless exists $previousStep->{ stepId };
+    
+    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
+        $previousStep->{ stepOrder },
+        $thisStep->{ stepId },
+    ]);
+    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
+        $thisStep->{ stepOrder },
+        $previousStep->{ stepId },
+    ]);
+
+    return www_listSteps( $session );
+}
+
+
+
+#-------------------------------------------------------------------
+sub www_moveStepUp {
+    my $session = shift;
+    my $stepId  = $session->form->process( 'stepId' );
+
+    my $thisStep        = $session->db->quickHashRef('select * from RegistrationStep where stepId=?', [
+        $stepId,
+    ]);
+
+    my $previousStep    = $session->db->quickHashRef(
+        'select * from RegistrationStep where registrationId=? and stepOrder < ? order by stepOrder desc limit 1', [
+            $thisStep->{ registrationId },
+            $thisStep->{ stepOrder      },
+        ]
+    );
+   
+    # First step already
+    return www_listSteps( $session ) unless exists $previousStep->{ stepId };
+
+    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
+        $previousStep->{ stepOrder },
+        $thisStep->{ stepId },
+    ]);
+    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
+        $thisStep->{ stepOrder },
+        $previousStep->{ stepId },
+    ]);
+
+    return www_listSteps( $session );
 }
 
 #-------------------------------------------------------------------
