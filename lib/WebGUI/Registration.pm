@@ -550,7 +550,8 @@ sub www_createAccount {
     my $self    = shift;
     my $session = $self->session;
 
-    $self->session->scratch->set('redirectAfterLogin', $session->url->page('func=getProfileCategoryData'));
+#### TODO: De redirect hoeft denk ik niet meer
+    $self->session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
 
     # Cannot use WG::Op::www_auth b/c the user style is hard coded in there...
     return $self->processStyle( WebGUI::Auth::WebGUI->new( $session )->createAccount );
@@ -563,7 +564,8 @@ sub www_login {
     my $self    = shift;
     my $session = $self->session;
 
-    $session->scratch->set('redirectAfterLogin', $session->url->page('func=getProfileCategoryData'));
+#### TODO: De redirect hoeft denk ik niet meer
+    $session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
 
     # Cannot use WG::Op::www_auth b/c the user style is hardcoded...
     return $self->processStyle( WebGUI::Auth::WebGUI->new($session)->init );
@@ -602,14 +604,16 @@ sub www_noValidUser {
         . WebGUI::Form::submit($session, {                      value => 'Account aanmaken'         } )
         . WebGUI::Form::formFooter($session);
     $var->{ createAccount_url       } = $session->url->page('func=createAccount');
+
+#### TODO: Kan dit kan weg?...
     $var->{ proceed_button          } =
         WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'getProfileCategoryData'   } )
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'viewStep'   } )
         . WebGUI::Form::submit($session, {                      value => 'Volgende stap'            } )
         . WebGUI::Form::formFooter($session);
-    $var->{ proceed_url             } = $session->url->page('func=getProfileCategoryData');
+    $var->{ proceed_url             } = $session->url->page('func=viewStep');
     $var->{ isVisitor               } = ($session->user->userId eq '1');
-
+#### TODO: ...tot hierrr
     my $template = WebGUI::Asset::Template->new($self->session, $self->get('noValidUserTemplateId'));
     return $self->processStyle( $template->process($var) );
 }
