@@ -432,9 +432,9 @@ sub www_editRegistrationInstanceDataSave {
     $currentVersionTag->setWorking if (defined $currentVersionTag);
     
     # Run workflow on account creation.
-    if ($self->get('newAccountWorkflowId')) {
+    if ($registration->get('newAccountWorkflowId')) {
         WebGUI::Workflow::Instance->create($session, {
-            workflowId  => $self->get('newAccountWorkflowId'),
+            workflowId  => $registration->get('newAccountWorkflowId'),
             methodName  => "new",
             className   => "WebGUI::User",
             parameters  => $user->userId,

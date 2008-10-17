@@ -199,10 +199,16 @@ sub getCurrentStep {
     my $self    = shift;
     my $session = $self->session;
 
-    my $registrationSteps = $self->registrationSteps;
+    my @registrationStepIds =  map { $_->{stepId} } @{ $self->registrationSteps };
+    my $overrideStepId      =  $session->scratch->get( 'overrideStepId' );
+
+    # Return override step only if it is also part of this registration.
+    if ( $overrideStepId && isIn( $overrideStepId, @registrationStepIds ) ) {
+        return $self->getStep( $overrideStepId );
+    }
 
     # Find first incomplete step and return it
-    foreach my $stepId ( map { $_->{stepId} } @{ $registrationSteps } ) {
+    foreach my $stepId ( @registrationStepIds ) {
         # TODO: Catch exception.
         my $step = $self->getStep( $stepId );
 
@@ -483,6 +489,20 @@ sub update {
     }
 }
 
+#-------------------------------------------------------------------
+sub www_changeStep {
+    my $self    = shift;
+    my $session = $self->session;
+
+    my $allStepsComplete    = ( defined $self->getCurrentStep ) ? 0 : 1;
+    my $stepId              = $session->form->process( 'stepId' );
+
+    if ($allStepsComplete && $stepId) {
+        $session->scratch->set( 'overrideStepId', $stepId );
+    }
+
+    return $self->www_viewStep;
+}
 
 #-------------------------------------------------------------------
 sub www_confirmRegistrationData {
@@ -639,17 +659,6 @@ sub www_viewStep {
     else {
         # Completed last step succesfully.
 
-        # Check if is being edited. This is place here so that editing a step is only possible when all steps are
-        # complete. This prevents users from taking steps in the wrong order.
-        my $stepId = $session->form->process('stepId');
-
-        if ( $stepId ) {
-            #### TODO: Catch exceptions
-            my $step = $self->getStep( $stepId );
-
-            return $step->www_view if $step;
-        }
-        
         #### TODO: Dubbelchecken of alle stappen zijn gecomplete.
         $output = $self->www_confirmRegistrationData;
     }
@@ -660,7 +669,7 @@ sub www_viewStep {
 #-------------------------------------------------------------------
 sub www_viewStepSave {
     my $self    = shift;
-    my $session = shift;
+    my $session = $self->session;
 
     return $self->www_noValidUser unless $self->hasValidUser;
 
@@ -674,7 +683,10 @@ sub www_viewStepSave {
     # Return the step screen if an error occurred during processing.
     return $currentStep->www_view if (@{ $currentStep->error });
 
-    # Otherwise proceed.
+    # Clear step id override flag.
+    $session->scratch->delete( 'overrideStepId' );
+
+    # And return the next screen.
     return $self->www_viewStep;
 }
 

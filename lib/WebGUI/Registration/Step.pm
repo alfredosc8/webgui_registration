@@ -46,7 +46,7 @@ sub changeStepDataUrl {
     my $self    = shift;
 
     return $self->session->url->page(
-        'registration=register;func=viewStep;stepId='.$self->stepId.';registrationId='.$self->registration->registrationId
+        'registration=register;func=changeStep;stepId='.$self->stepId.';registrationId='.$self->registration->registrationId
     );
 }
 
