@@ -81,6 +81,7 @@ sub definition {
         properties  => \%fields,
         exports     => $exports,
         namespace   => 'WebGUI::Registration::Step::UserGroup',
+        noStepCount => 1,
     };
 
     return $class->SUPER::definition( $session, $definition ); 

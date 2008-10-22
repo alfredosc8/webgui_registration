@@ -89,6 +89,13 @@ sub definition {
     my $session     = shift;
     my $definition  = shift || [ ];
 
+    # Flatten properties from definitions
+    my %flatDefinition;
+    foreach my $def (@{ $definition }) {
+        %flatDefinition = ( %flatDefinition, %{ $def } );
+    }
+    delete $flatDefinition{ properties };
+
     tie my %fields, 'Tie::IxHash', (
         title   => {
             fieldType   => 'text',
@@ -101,11 +108,17 @@ sub definition {
             label       => 'Comments',
         },
     );
+    $fields{ countStep }    = {
+        fieldType       => 'yesNo',
+        label           => 'Count as seperate step?',
+        defaultValue    => 1,
+    } unless $flatDefinition{ noStepCount };
 
     push @{ $definition }, {
         name        => 'Registration Step',
         properties  => \%fields,
         namespace   => 'WebGUI::Registration::Step',
+        %flatDefinition
     };
 
     return $definition;
@@ -269,12 +282,30 @@ sub getStepForm {
 }
 
 #-------------------------------------------------------------------
+sub getStepNumber {
+    my $self        = shift;
+    my $steps       = $self->registration->getSteps;
+    my $stepCount   = 0;
+
+    foreach my $step ( @{ $steps } ) {
+        $stepCount++ if $step->get('countStep');
+
+        last if $step->stepId eq $self->stepId;
+    }
+
+    # If no step has a seperate step count we still have to return 1.
+    return $stepCount || 1;
+}
+
+
+#-------------------------------------------------------------------
 sub getViewVars {
     my $self            = shift;
     my $registrationId  = $self->registration->registrationId;
     
     my $var;
     $var->{ category_name   } = 'Naam van uw site';
+    $var->{ step_number     } = $self->getStepNumber;
     $var->{ comment         } = $self->get('comment');
     $var->{ form_header     } =
         WebGUI::Form::formHeader($self->session)
@@ -318,7 +349,7 @@ sub getSummaryTemplateVars {
 
 #-------------------------------------------------------------------
 sub isComplete {
-    return 'abcde';
+    return 0;
 }
 
 #-------------------------------------------------------------------
