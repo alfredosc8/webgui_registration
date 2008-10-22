@@ -78,6 +78,8 @@ sub adminConsole {
 sub www_addRegistration {
     my $session = shift;
 
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
     my $registration    = WebGUI::Registration->create( $session );
 
     return $registration->www_edit;
@@ -281,6 +283,8 @@ sub www_editRegistrationInstanceData {
     my $session = shift;
     my $error   = shift || [];
 
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
     my $registrationId  = $session->form->process( 'registrationId' );
     my $userId          = $session->form->process( 'userId'         );
 
@@ -352,6 +356,8 @@ sub www_editRegistrationInstanceData {
 #### TODO: Deze code moet eigenlijk naar WG::Registration
 sub www_editRegistrationInstanceDataSave {
     my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     my @error;
 
@@ -476,6 +482,8 @@ sub www_editStepSave {
 sub www_listPendingRegistrations {
     my $session = shift;
 
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
     my $registrationId  = $session->form->process( 'registrationId' );
     $session->stow->set('admin_registrationId', $registrationId);
 
@@ -504,6 +512,8 @@ sub www_listPendingRegistrations {
 sub www_listSteps {
     my $session         = shift;
     my $registrationId  = shift || $session->form->process('registrationId');
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
     my $steps           = $registration->getSteps;
@@ -544,6 +554,8 @@ sub www_moveStepDown {
     my $session = shift;
     my $stepId  = $session->form->process( 'stepId' );
 
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
     my $thisStep        = $session->db->quickHashRef('select * from RegistrationStep where stepId=?', [
         $stepId,
     ]);
@@ -577,6 +589,8 @@ sub www_moveStepUp {
     my $session = shift;
     my $stepId  = $session->form->process( 'stepId' );
 
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
     my $thisStep        = $session->db->quickHashRef('select * from RegistrationStep where stepId=?', [
         $stepId,
     ]);
@@ -606,6 +620,8 @@ sub www_moveStepUp {
 #-------------------------------------------------------------------
 sub www_view {
     my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     my @registrationIds = $session->db->buildArray( 'select registrationId from Registration' );
 
