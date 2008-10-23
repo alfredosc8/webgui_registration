@@ -448,6 +448,8 @@ sub www_editRegistrationInstanceDataSave {
         });
     } 
 
+    $registration->setRegistrationStatus( 'approved' );
+
     return www_listPendingRegistrations( $session );
 }
 
