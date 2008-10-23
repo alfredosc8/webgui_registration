@@ -12,67 +12,47 @@ sub adminConsole {
     my $session = shift;
     my $content = shift;
     my $title   = shift;
+    my $url     = $session->url;
+    my $ac      = WebGUI::AdminConsole->new( $session );
 
-    my $ac = WebGUI::AdminConsole->new( $session );
+    my $registrationId  = $session->stow->get('admin_registrationId');
+    my $baseParams      = 'registration=admin;registrationId='.$registrationId;
 
-    my $registrationId = $session->stow->get('admin_registrationId');
-
-    $ac->addSubmenuItem( $session->url->page('registration=admin;func=view'), 'List registrations');
-    $ac->addSubmenuItem( $session->url->page('registration=admin;func=listSteps;registrationId='.$registrationId), 'List registration steps');
-    $ac->addSubmenuItem(
-        $session->url->page('registration=admin;func=editRegistrationInstanceData;userId=new;registrationId='.$registrationId),
-        'Add a new account'
-    );
+    $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'                 ), 'List registrations'         );
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=listSteps"                   ), 'List registration steps'    );
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
 
     return $ac->render( $content, $title );
 }
 
-##-------------------------------------------------------------------
-#sub deleteAccount {
-#    my ($output, @deleteGroups);
-#    my $session         = shift;
-#    my $registration    = shift;
-#    my @actions;
-#   
-#    
-#    if ( $session->form->process( 'deleteAccountStatus' ) ) {
-#        $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
-#            $registration->registrationId,
-#            $registration->user->userId,
-#        ]);
-#        push @actions, 'Removing account status';
-#    }
-#    
-#    # Execute workflow
-#    my $workflowId = $registration->get('removeAccountWorkflowId');
-#    if ( $session->form->process( 'executeWorkflow' ) && $workflowId ) {
-#        WebGUI::Workflow::Instance->create($self->session, {
-#            workflowId  => $workflowId,
-#            methodName  => "new",
-#            className   => "WebGUI::User",
-##           mode        => 'realtime',
-#            parameters  => $registration->user->userId,
-#            priority    => 1
-#        });
-#        push @actions, 'Executiong workflow';
-#    }
-#    
-#    # Execute onDelete handlers of step
-#    foreach my $step ( @{ $registration->getSteps } ) {
-#        if ( $session->form->process( 'step_'.$stepId ) ) {
-#            push @actions, $step->onDeleteAccount( 1 );
-#        }
-#    }
-#    
-#    # Remove user account
-#    if ( $session->form->process('removeUseAccount') ) {
-#        $registration->user->delete;
-#        push @actions, 'Removing user account';
-#    }
-#    
-#    my $output = '<ul><li>' . join( '</li><li>', @actions ) . '</li></ul>';
-#    return $output;
-#}    
+#-------------------------------------------------------------------
+sub getRegistrations {
+    my $session         = shift;
+    my $registrationId  = shift;
+    my $status          = shift;
+
+    my @userIds = $session->db->buildArray("select userId from Registration_status where status=? and registrationId=?", [
+        $status,
+        $registrationId,
+    ]);
+
+    my $output = '<table>';
+    foreach (@userIds) {
+        my $user = WebGUI::User->new($session, $_);
+
+        $output .= '<tr><td><a href="'
+            . $session->url->page('registration=admin;registrationId='.$registrationId.';func=deleteAccount;uid='.$_).'">DELETE</a></td>';
+        $output .= '<td><a href="'
+            . $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
+            . '">EDIT</a></td>';
+        $output .= '<td>'.$user->username.'</td>'; #<td>'.$user->profileField('homepageUrl').'</td></tr>';
+    }
+    $output .= '</table>';
+}
+
+
 
 #-------------------------------------------------------------------
 sub www_addRegistration {
@@ -481,6 +461,20 @@ sub www_editStepSave {
 }
 
 #-------------------------------------------------------------------
+sub www_listApprovedRegistrations {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $registrationId  = $session->form->process( 'registrationId' );
+    $session->stow->set('admin_registrationId', $registrationId);
+
+    my $output = getRegistrations( $session, $registrationId, 'approved' );
+
+    return adminConsole( $session, $output, 'Approved accounts' );
+}
+
+#-------------------------------------------------------------------
 sub www_listPendingRegistrations {
     my $session = shift;
 
@@ -489,23 +483,7 @@ sub www_listPendingRegistrations {
     my $registrationId  = $session->form->process( 'registrationId' );
     $session->stow->set('admin_registrationId', $registrationId);
 
-    my @userIds = $session->db->buildArray("select userId from Registration_status where status='pending' and registrationId=?", [
-        $registrationId,
-    ]);
-
-    my $output ; #= '<h1>Accounts waiting for approval</h1>';
-    $output .= '<table>';
-    foreach (@userIds) {
-        my $user = WebGUI::User->new($session, $_);
-
-        $output .= '<tr><td><a href="'
-            . $session->url->page('registration=admin;registrationId='.$registrationId.';func=deleteAccount;uid='.$_).'">DELETE</a></td>';
-        $output .= '<td><a href="'
-            . $session->url->page('registration=admin;registrationId='.$registrationId.';func=editRegistrationInstanceData;userId='.$_)
-            . '">EDIT</a></td>';
-        $output .= '<td>'.$user->username.'</td>'; #<td>'.$user->profileField('homepageUrl').'</td></tr>';
-    }
-    $output .= '</table>';
+    my $output = getRegistrations( $session, $registrationId, 'pending' );
 
     return adminConsole( $session, $output, 'Pending accounts' );
 }
@@ -517,22 +495,29 @@ sub www_listSteps {
 
     return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-    my $steps           = $registration->getSteps;
-    
     $session->stow->set('admin_registrationId', $registrationId);
 
-    my $output = '<ul>';
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+    my $steps           = $registration->getSteps;
+
+    # Registration properties 
+    my $output = 
+        '<fieldset><legend>Registration properties</legend>' . $registration->getEditForm->print . '</fieldset>'; 
+
+    my $icon = $session->icon;
+
+    $output .= '<fieldset><legend>Registration steps</legend><ul>';
     foreach my $step ( @{ $steps } ) {
-        $output .= '<li>'
-            . $session->icon->delete('registration=admin;func=deleteStep;stepId='.$step->stepId.';registrationId='.$registrationId)
-            . $session->icon->moveUp('registration=admin;func=moveStepUp;stepId='.$step->stepId.';registrationId='.$registrationId)
-            . $session->icon->moveDown('registration=admin;func=moveStepDown;stepId='.$step->stepId.';registrationId='.$registrationId)
-            . '<a href="'
-            .   $session->url->page('registration=admin;func=editStep;stepId='.$step->stepId.';registrationId='.$registrationId)
-            . '">'
-            . '[stap]'.$step->get( 'title' )
-            . '</a></li>';       
+        my $baseParams = 'registration=admin;stepId=' . $step->stepId . ';registrationId=' . $registrationId;
+        
+        $output .= 
+            '<li>'
+            . $icon->delete(    "$baseParams;func=deleteStep"   )
+            . $icon->moveUp(    "$baseParams;func=moveStepUp"   )
+            . $icon->moveDown(  "$baseParams;func=moveStepDown" )
+            . $icon->edit(      "$baseParams;func=editStep"     )
+            . $step->get( 'title' )
+            .'</li>';       
     }
 
     my $availableSteps  = { map {$_ => $_} @{ $session->config->get('registrationSteps') } };
@@ -546,7 +531,7 @@ sub www_listSteps {
         . WebGUI::Form::formFooter( $session );
 
 
-    $output .= "<li>$addForm</li>";
+    $output .= "<li>$addForm</li></ul></fieldset>";
 
     return adminConsole( $session, $output, 'Edit registration steps for ' . $registration->get('title') );
 }
@@ -631,34 +616,39 @@ sub www_view {
     foreach my $id ( @registrationIds ) {
         my $registration    = WebGUI::Registration->new( $session, $id );
 
-        my $deleteButton = $session->icon->delete(
+        my $deleteButton    = $session->icon->delete(
             "registration=admin;func=deleteRegistration;registrationId=$id",
             undef,
             'Weet u zeker dat u deze registratie wil verwijderen?',
         );
-        my $editButton =
-              WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'editRegistration'    } )
-            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
-            . WebGUI::Form::submit(     $session, {                             -value => 'Edit'                } )
-            . WebGUI::Form::formFooter( $session );
-        my $stepsButton =
-              WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listSteps'           } )
-            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
-            . WebGUI::Form::submit(     $session, {                             -value => 'Steps'               } )
-            . WebGUI::Form::formFooter( $session );
-        my $accountButton =
-              WebGUI::Form::formHeader( $session )
-            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listPendingRegistrations' } )
-            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
-            . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts'     } )
-            . WebGUI::Form::formFooter( $session );
-            
-        $output .= "<li>$deleteButton $editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';
+        my $editButton      = $session->icon->edit(
+            "registration=admin;func=listSteps;registrationId=$id",
+        );
+
+#        my $editButton =
+#              WebGUI::Form::formHeader( $session )
+#            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
+#            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'editRegistration'    } )
+#            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
+#            . WebGUI::Form::submit(     $session, {                             -value => 'Edit'                } )
+#            . WebGUI::Form::formFooter( $session );
+#        my $stepsButton =
+#              WebGUI::Form::formHeader( $session )
+#            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
+#            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listSteps'           } )
+#            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
+#            . WebGUI::Form::submit(     $session, {                             -value => 'Steps'               } )
+#            . WebGUI::Form::formFooter( $session );
+#        my $accountButton =
+#              WebGUI::Form::formHeader( $session )
+#            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
+#            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listPendingRegistrations' } )
+#            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
+#            . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts'     } )
+#            . WebGUI::Form::formFooter( $session );
+#            
+#        $output .= "<li>$deleteButton $editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';
+        $output .= "<li>$deleteButton $editButton" .  $registration->get('title') . '</li>';
     }
 
     $output .= '<li><a href="'.$session->url->page('registration=admin;func=addRegistration').'">NEW REG</a>';
