@@ -18,13 +18,30 @@ sub adminConsole {
     my $registrationId  = $session->stow->get('admin_registrationId');
     my $baseParams      = 'registration=admin;registrationId='.$registrationId;
 
-    $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'                 ), 'List registrations'         );
-    $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
-    $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
-    $ac->addSubmenuItem( $url->page( "$baseParams;func=listSteps"                   ), 'List registration steps'    );
-    $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
+    if ( $session->user->isInGroup( 3 ) ) {
+        $ac->addSubmenuItem( $url->page( 'registration=admin;func=view' ), 'List registrations'      );
+    }
+    if ( $session->user->isInGroup( 3 ) && $registrationId ) {
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=listSteps"   ), 'List registration steps' );
+    }
+
+    if ( $registrationId && canManage( $session, $registrationId ) ) {
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
+    }
 
     return $ac->render( $content, $title );
+}
+
+#-------------------------------------------------------------------
+sub canManage {
+    my $session         = shift;
+    my $registrationId  = shift || $session->form->param('registrationId'); 
+
+    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+
+    return $session->user->isInGroup( $registration->get('registrationManagersGroupId') );
 }
 
 #-------------------------------------------------------------------
@@ -69,7 +86,7 @@ sub www_addRegistration {
 sub www_addStep {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $registrationId  = $session->form->process('registrationId');
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
@@ -93,7 +110,7 @@ sub www_addStep {
 sub www_deleteAccount {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $userId          = $session->form->param('uid');
     my $registrationId  = $session->form->param('registrationId');
@@ -148,7 +165,7 @@ sub www_deleteAccountConfirm {
     my $session = shift;
     my @actions;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $userId          = $session->form->param('uid');
     my $registrationId  = $session->form->param('registrationId');
@@ -222,7 +239,7 @@ sub www_deleteRegistration {
 sub www_deleteStep {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $stepId  = $session->form->process('stepId');
     my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
@@ -263,7 +280,7 @@ sub www_editRegistrationInstanceData {
     my $session = shift;
     my $error   = shift || [];
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $registrationId  = $session->form->process( 'registrationId' );
     my $userId          = $session->form->process( 'userId'         );
@@ -337,7 +354,7 @@ sub www_editRegistrationInstanceData {
 sub www_editRegistrationInstanceDataSave {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my @error;
 
@@ -464,7 +481,7 @@ sub www_editStepSave {
 sub www_listApprovedRegistrations {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $registrationId  = $session->form->process( 'registrationId' );
     $session->stow->set('admin_registrationId', $registrationId);
@@ -478,7 +495,7 @@ sub www_listApprovedRegistrations {
 sub www_listPendingRegistrations {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    return $session->privilege->insufficient unless canManage( $session );
 
     my $registrationId  = $session->form->process( 'registrationId' );
     $session->stow->set('admin_registrationId', $registrationId);
@@ -493,9 +510,10 @@ sub www_listSteps {
     my $session         = shift;
     my $registrationId  = shift || $session->form->process('registrationId');
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
     $session->stow->set('admin_registrationId', $registrationId);
+
+    return $session->privilege->insufficient unless canManage( $session );
+    return www_managerScreen( $session ) unless $session->user->isInGroup( 3 );
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
     my $steps           = $registration->getSteps;
@@ -534,6 +552,17 @@ sub www_listSteps {
     $output .= "<li>$addForm</li></ul></fieldset>";
 
     return adminConsole( $session, $output, 'Edit registration steps for ' . $registration->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_managerScreen {
+    my $session = shift;
+   
+    return $session->privilege->insufficient unless canManage( $session );
+
+    my $message = 'Gebruik het menu rechts voor accountbeheer.';
+
+    return adminConsole( $session, $message, 'Accountbeheer' );
 }
 
 #-------------------------------------------------------------------
@@ -608,13 +637,15 @@ sub www_moveStepUp {
 sub www_view {
     my $session = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+#    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 
     my @registrationIds = $session->db->buildArray( 'select registrationId from Registration' );
 
     my $output = '<ul>';
     foreach my $id ( @registrationIds ) {
         my $registration    = WebGUI::Registration->new( $session, $id );
+
+        next unless canManage( $session, $id );
 
         my $deleteButton    = $session->icon->delete(
             "registration=admin;func=deleteRegistration;registrationId=$id",
@@ -625,29 +656,6 @@ sub www_view {
             "registration=admin;func=listSteps;registrationId=$id",
         );
 
-#        my $editButton =
-#              WebGUI::Form::formHeader( $session )
-#            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-#            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'editRegistration'    } )
-#            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
-#            . WebGUI::Form::submit(     $session, {                             -value => 'Edit'                } )
-#            . WebGUI::Form::formFooter( $session );
-#        my $stepsButton =
-#              WebGUI::Form::formHeader( $session )
-#            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-#            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listSteps'           } )
-#            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
-#            . WebGUI::Form::submit(     $session, {                             -value => 'Steps'               } )
-#            . WebGUI::Form::formFooter( $session );
-#        my $accountButton =
-#              WebGUI::Form::formHeader( $session )
-#            . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-#            . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'listPendingRegistrations' } )
-#            . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $id                   } )
-#            . WebGUI::Form::submit(     $session, {                             -value => 'Manage accounts'     } )
-#            . WebGUI::Form::formFooter( $session );
-#            
-#        $output .= "<li>$deleteButton $editButton $stepsButton $accountButton" .  $registration->get('title') . '</li>';
         $output .= "<li>$deleteButton $editButton" .  $registration->get('title') . '</li>';
     }
 

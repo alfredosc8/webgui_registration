@@ -21,19 +21,21 @@
 
 DROP TABLE IF EXISTS `Registration`;
 CREATE TABLE `Registration` (
-  `registrationId` varchar(22) NOT NULL,
+  `registrationId` char(22) NOT NULL,
   `title` varchar(255) default NULL,
   `url` varchar(255) default NULL,
-  `stepTemplateId` varchar(22) default NULL,
-  `styleTemplateId` varchar(22) default NULL,
-  `confirmationTemplateId` varchar(22) default NULL,
-  `registrationCompleteTemplateId` varchar(22) default NULL,
-  `noValidUserTemplateId` varchar(22) default NULL,
-  `setupCompleteMailTemplateId` varchar(22) default NULL,
+  `stepTemplateId` char(22) default NULL,
+  `styleTemplateId` char(22) default NULL,
+  `confirmationTemplateId` char(22) default NULL,
+  `registrationCompleteTemplateId` char(22) default NULL,
+  `noValidUserTemplateId` char(22) default NULL,
+  `setupCompleteMailTemplateId` char(22) default NULL,
   `setupCompleteMailSubject` varchar(255) default NULL,
-  `siteApprovalMailTemplateId` varchar(22) default NULL,
+  `siteApprovalMailTemplateId` char(22) default NULL,
   `siteApprovalMailSubject` varchar(255) default NULL,
-  `removeAccountWorkflowId` varchar(22) default NULL,
+  `removeAccountWorkflowId` char(22) default NULL,
+  `newAccountWorkflowId` char(22) default NULL,
+  `registrationManagersGroupId` char(22) default NULL,
   PRIMARY KEY  (`registrationId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
@@ -43,8 +45,8 @@ CREATE TABLE `Registration` (
 
 DROP TABLE IF EXISTS `RegistrationStep`;
 CREATE TABLE `RegistrationStep` (
-  `stepId` varchar(22) NOT NULL,
-  `registrationId` varchar(22) NOT NULL,
+  `stepId` char(22) NOT NULL,
+  `registrationId` char(22) NOT NULL,
   `stepOrder` int(3) default NULL,
   `options` text,
   `namespace` varchar(255) default NULL,
@@ -57,9 +59,9 @@ CREATE TABLE `RegistrationStep` (
 
 DROP TABLE IF EXISTS `RegistrationStep_accountData`;
 CREATE TABLE `RegistrationStep_accountData` (
-  `stepId` varchar(22) NOT NULL,
-  `userId` varchar(22) NOT NULL,
-  `status` varchar(20) default NULL,
+  `stepId` char(22) NOT NULL,
+  `userId` char(22) NOT NULL,
+  `status` char(20) default NULL,
   `configurationData` text,
   PRIMARY KEY  (`stepId`,`userId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
@@ -70,9 +72,9 @@ CREATE TABLE `RegistrationStep_accountData` (
 
 DROP TABLE IF EXISTS `Registration_status`;
 CREATE TABLE `Registration_status` (
-  `registrationId` varchar(22) NOT NULL,
-  `userId` varchar(22) NOT NULL,
-  `status` varchar(20) NOT NULL default 'setup',
+  `registrationId` char(22) NOT NULL,
+  `userId` char(22) NOT NULL,
+  `status` char(20) NOT NULL default 'setup',
   PRIMARY KEY  (`registrationId`,`userId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -85,4 +87,4 @@ CREATE TABLE `Registration_status` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2008-10-16  8:55:36
+-- Dump completed on 2008-10-24  7:44:51

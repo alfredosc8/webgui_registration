@@ -31,6 +31,10 @@ sub definition {
             fieldType   => 'text',
             label       => 'URL',
         },
+        registrationManagersGroupId => {
+            fieldType   => 'group',
+            label       => 'Group to manage this registration',
+        },
         styleTemplateId => {
             fieldType   => 'template',
             label       => 'Style',
@@ -56,7 +60,6 @@ sub definition {
             label       => 'No valid user template',
             namespace   => 'Registration/NoValidUser',
         },
-
         setupCompleteMailSubject => {
             fieldType   => 'text',
             tab         => 'display',
@@ -68,7 +71,6 @@ sub definition {
             tab         => 'display',
             label       => 'Registration complete notification email template',
         },
-
         siteApprovalMailSubject => {
             fieldType   => 'text',
             tab         => 'display',
@@ -80,14 +82,14 @@ sub definition {
             tab         => 'display',
             label       => 'Site approval nofication mail template',
         },
-         newAccountWorkflowId   => {
+        newAccountWorkflowId => {
             fieldType           => 'workflow',
             type                => 'WebGUI::User',
             none                => 1,
             tab                 => 'security',
             label               => 'Run workflow on account creation',
-         },
-        removeAccountWorkflowId=> {
+        },
+        removeAccountWorkflowId => {
             fieldType           => 'workflow',
             type                => 'WebGUI::User',
             includeRealtime     => 1,
@@ -95,9 +97,6 @@ sub definition {
             tab                 => 'security',
             label               => 'Run workflow on account removal',
          },
-
-
- 
     );
 
     push  @{ $definition }, {
