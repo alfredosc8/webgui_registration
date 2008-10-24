@@ -31,6 +31,22 @@ sub definition {
             fieldType   => 'text',
             label       => 'URL',
         },
+        countLoginAsStep => {
+            fieldType   => 'yesNo',
+            label       => 'Count login as step?',
+        },
+        loginTitle => {
+            fieldType   => 'text',
+            label       => 'Login title',
+        },
+        countConfirmationAsStep => {
+            fieldType   => 'yesNo',
+            label       => 'Count confirmation as step?',
+        },
+        confirmationTitle => {
+            fieldType   => 'text',
+            -label      => 'Confirmation title',
+        },
         registrationManagersGroupId => {
             fieldType   => 'group',
             label       => 'Group to manage this registration',
@@ -267,12 +283,26 @@ sub getEditForm {
 #-------------------------------------------------------------------
 sub getStepStatus {
     my $self    = shift;
+    my $session = $self->session;
 
     my @steps       = @{ $self->getSteps };
     my $currentStep = $self->getCurrentStep;
     my @stepStatus;
     my $stepCounter = 1;
 
+    # Add login step
+    if ($self->get('countLoginAsStep')) {
+        push @stepStatus, {
+            stepName            => $self->get('loginTitle'),
+            stepComplete        => $session->user->userId ne '1',
+            isCurrentStep       => $session->user->userId eq '1',
+            stepNumber          => $stepCounter,
+            substep_loop        => [],
+        };
+        $stepCounter++
+    }
+
+    # Add registration steps
     foreach my $step (@steps) {
         next if $step->isInvisible;
 
@@ -296,6 +326,19 @@ sub getStepStatus {
             };
         }    
     }
+
+    # Add confirmation step
+    if ($self->get('countConfirmationAsStep')) {
+        push @stepStatus, {
+            stepName            => $self->get('confirmationTitle'),
+            stepComplete        => $session->user->userId ne '1',
+            isCurrentStep       => $session->user->userId eq '1',
+            stepNumber          => $stepCounter,
+            substep_loop        => [],
+        };
+        $stepCounter++
+    }
+
 
     return \@stepStatus;
 }

@@ -287,6 +287,7 @@ sub getStepNumber {
     my $steps       = $self->registration->getSteps;
     my $stepCount   = 0;
 
+    my $stepCount++ if $self->registration->get('countLoginAsStep');
     foreach my $step ( @{ $steps } ) {
         $stepCount++ if $step->get('countStep');
 
