@@ -254,6 +254,10 @@ sub getEditForm {
         -name       => 'registrationId',
         -value      => $self->registrationId,
     );
+    $f->readOnly(
+        -label      => 'Registration id',
+        -value      => $self->registrationId,
+    );
     $f->dynamicForm( $self->definition( $session ), 'properties', $self );
     $f->submit;
 
@@ -274,15 +278,23 @@ sub getStepStatus {
 
         my $substeps = $step->getSubstepStatus;
 
-        push @stepStatus, {
-            stepName            => $step->get('title'),
-            stepComplete        => $step->isComplete,
-            isCurrentStep       => $currentStep ? $currentStep->stepId eq $step->stepId : 0,
-            stepNumber          => $stepCounter,
-            substep_loop        => $step->getSubstepStatus,
-        };
-
-        $stepCounter++;
+        if ($step->get('countStep') || !@stepStatus ) {
+            push @stepStatus, {
+                stepName            => $step->get('title'),
+                stepComplete        => $step->isComplete,
+                isCurrentStep       => $currentStep ? $currentStep->stepId eq $step->stepId : 0,
+                stepNumber          => $stepCounter,
+                substep_loop        => $step->getSubstepStatus,
+            };
+            $stepCounter++
+        }
+        else {
+            push @{ $stepStatus[-1]->{ substep_loop } }, {
+               substepName          => $step->get('title'),
+               substepComplete      => $step->isComplete,
+               isCurrentSubstep     => $currentStep ? $currentStep->stepId eq $step->stepId : 0,
+            };
+        }    
     }
 
     return \@stepStatus;

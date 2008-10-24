@@ -79,7 +79,7 @@ sub www_addRegistration {
 
     my $registration    = WebGUI::Registration->create( $session );
 
-    return $registration->www_edit;
+    return adminConsole( $session, $registration->getEditForm->print, 'Add Registration');
 }
 
 #-------------------------------------------------------------------
@@ -512,7 +512,7 @@ sub www_listSteps {
 
     $session->stow->set('admin_registrationId', $registrationId);
 
-    return $session->privilege->insufficient unless canManage( $session );
+    return $session->privilege->insufficient unless canManage( $session, $registrationId );
     return www_managerScreen( $session ) unless $session->user->isInGroup( 3 );
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
