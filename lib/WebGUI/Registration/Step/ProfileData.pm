@@ -184,7 +184,7 @@ sub getSummaryTemplateVars {
         foreach my $field (@{ $category->getFields }) {
             push(@fields, {
                 field_label         => $field->getLabel,
-                field_value         => $fieldData->{ $field->getId },               #$field->formField(undef, 2, $user),
+                field_value         => $field->formField(undef, 2, $user, 0, $fieldData->{ $field->getId }),
                 field_formElement   => $field->formField(undef, 0, $user, 0, $fieldData->{ $field->getId }),
             });
         }
