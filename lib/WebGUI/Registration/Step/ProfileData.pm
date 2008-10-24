@@ -141,7 +141,8 @@ sub getSubstepStatus {
                                 keys %$profileSteps;
 
     my $completedCategories     = $self->getConfigurationData->{ completedProfileCategories } || {};
-    my $currentCategory         = first { !exists $completedCategories->{ $_ } } @categories;
+    my $overrideCategoryId      = $session->form->process('overrideCategoryId');
+    my $currentCategory         = $overrideCategoryId || first { !exists $completedCategories->{ $_ } } @categories;
 
     # And put into tmpl_vars
     foreach my $categoryId ( @categories ) {
@@ -192,7 +193,7 @@ sub getSummaryTemplateVars {
             field_loop          => \@fields,
             category_label      => $category->getLabel,
             category_id         => $category->getId,
-            category_edit_url   => $session->url->append( $self->changeStepDataUrl, 'categoryId='.$category->getId ),
+            category_edit_url   => $session->url->append( $self->changeStepDataUrl, 'overrideCategoryId='.$category->getId ),
         });
     }
 
@@ -332,6 +333,26 @@ sub processStepFormData {
 };
 
 #-------------------------------------------------------------------
+sub getCurrentCategoryId {
+    my $self    = shift;
+
+    my $profileSteps    = $self->get('profileSteps') || {};
+    my @categories      = 
+        map    { $profileSteps->{$_} } 
+        sort 
+        grep    /^profileStep\d\d?$/,
+                keys %{ $profileSteps };
+    
+    my $completed = $self->getConfigurationData->{ completedProfileCategories } || {};
+
+    foreach my $categoryId (@categories) {
+        return $categoryId unless exists $completed->{ $categoryId };
+    }
+
+    return undef;
+}
+
+#-------------------------------------------------------------------
 sub processStepApprovalData {
     my $self = shift;
 
@@ -355,9 +376,14 @@ sub getViewVars {
     my $registrationId      = $self->registration->registrationId;
     my $profileOverrides    = $self->get('profileOverrides');
     my $profileSteps        = $self->get('profileSteps');
-    my $categoryId          = $self->session->scratch->get('currentCategoryId') 
-                              || $self->session->form->process('categoryId') 
-                              || $profileSteps->{ profileStep1 };
+
+    # Figure out categoryId from form post
+    my $categoryId          = $self->session->form->process('overrideCategoryId');
+
+    # Only allow categoryId overrides by form post if that categoryId has been completed before.
+    unless ($self->getConfigurationData->{ completedProfileCategories }->{ $categoryId }) {
+        $categoryId = $self->getCurrentCategoryId || $profileSteps->{ profileStep1 };
+    }
 
     # Figure out current sub step
     my $currentStep = { reverse %$profileSteps }->{ $categoryId };
