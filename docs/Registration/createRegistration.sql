@@ -1,8 +1,8 @@
 -- MySQL dump 10.11
 --
--- Host: localhost    Database: dev_head
+-- Host: localhost    Database: www_wieismijnarts_nl
 -- ------------------------------------------------------
--- Server version	5.0.45
+-- Server version	5.0.67
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -20,6 +20,8 @@
 --
 
 DROP TABLE IF EXISTS `Registration`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `Registration` (
   `registrationId` char(22) NOT NULL,
   `title` varchar(255) default NULL,
@@ -36,14 +38,21 @@ CREATE TABLE `Registration` (
   `removeAccountWorkflowId` char(22) default NULL,
   `newAccountWorkflowId` char(22) default NULL,
   `registrationManagersGroupId` char(22) default NULL,
+  `countLoginAsStep` tinyint(1) default '1',
+  `countConfirmationAsStep` tinyint(1) default '1',
+  `confirmationTitle` varchar(64) default NULL,
+  `loginTitle` varchar(64) default NULL,
   PRIMARY KEY  (`registrationId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+SET character_set_client = @saved_cs_client;
 
 --
 -- Table structure for table `RegistrationStep`
 --
 
 DROP TABLE IF EXISTS `RegistrationStep`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `RegistrationStep` (
   `stepId` char(22) NOT NULL,
   `registrationId` char(22) NOT NULL,
@@ -52,12 +61,31 @@ CREATE TABLE `RegistrationStep` (
   `namespace` varchar(255) default NULL,
   PRIMARY KEY  (`stepId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Table structure for table `Registration_status`
+--
+
+DROP TABLE IF EXISTS `Registration_status`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `Registration_status` (
+  `registrationId` char(22) NOT NULL,
+  `userId` char(22) NOT NULL,
+  `status` char(20) NOT NULL default 'setup',
+  `lastUpdate` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`registrationId`,`userId`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+SET character_set_client = @saved_cs_client;
 
 --
 -- Table structure for table `RegistrationStep_accountData`
 --
 
 DROP TABLE IF EXISTS `RegistrationStep_accountData`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `RegistrationStep_accountData` (
   `stepId` char(22) NOT NULL,
   `userId` char(22) NOT NULL,
@@ -65,18 +93,7 @@ CREATE TABLE `RegistrationStep_accountData` (
   `configurationData` text,
   PRIMARY KEY  (`stepId`,`userId`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-
---
--- Table structure for table `Registration_status`
---
-
-DROP TABLE IF EXISTS `Registration_status`;
-CREATE TABLE `Registration_status` (
-  `registrationId` char(22) NOT NULL,
-  `userId` char(22) NOT NULL,
-  `status` char(20) NOT NULL default 'setup',
-  PRIMARY KEY  (`registrationId`,`userId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+SET character_set_client = @saved_cs_client;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -87,4 +104,4 @@ CREATE TABLE `Registration_status` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2008-10-24  7:44:51
+-- Dump completed on 2008-10-29 12:06:41
