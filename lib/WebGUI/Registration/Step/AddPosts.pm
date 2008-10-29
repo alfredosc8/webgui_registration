@@ -171,7 +171,7 @@ sub getSourceCSs {
     tie my %availableSourceCSs, 'Tie::IxHash';
     %availableSourceCSs = 
         map     { $_->getId             => $_->get('menuTitle') } 
-        sort    { $a->get('menuTitle') <=> $b->get('menuTitle') }
+        sort    { $a->get('menuTitle') cmp $b->get('menuTitle') }
                 @{ $sourceCSs };
 
     return \%availableSourceCSs;
