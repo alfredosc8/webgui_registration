@@ -217,7 +217,12 @@ sub www_deleteAccountConfirm {
     my $output = 
         'Removing account:<br />'
         . '<ul><li>' . join( '</li><li>', @actions ) . '</li></ul>'
-        . '<a href="' . $session->url->page . '">Return to account list</a>';
+        . '<a href="' 
+        . $session->url->page('registration=admin;func=listPendingRegistrations;registrationId='.$registrationId)
+        . '">Return to pending account list</a><br />'
+        . '<a href="' 
+        . $session->url->page('registration=admin;func=listApprovedRegistrations;registrationId='.$registrationId)
+        . '">Return to approved account list</a>';
 
     return adminConsole( $session, $output, 'Account deleted' );
 }
@@ -446,6 +451,22 @@ sub www_editRegistrationInstanceDataSave {
     } 
 
     $registration->setRegistrationStatus( 'approved' );
+
+    # Create notification mail tmpl_vars
+    my $var;
+    #### TODO: homepageurl niet hardcoden
+    $var->{ homepage_url        } = $user->profileField( 'homepageUrl' );
+    $var->{ username            } = $user->username;
+
+    # Send notification mail
+    my $mailTemplate    = WebGUI::Asset::Template->new($session, $registration->get('siteApprovalMailTemplateId'));
+    my $mailBody        = $mailTemplate->process( $var );
+    my $mail            = WebGUI::Mail::Send->create($session, {
+        toUser      => $user->userId,
+        subject     => $registration->get('siteApprovalMailSubject'),
+    });
+    $mail->addText($mailBody);
+    $mail->queue;
 
     return www_listPendingRegistrations( $session );
 }
