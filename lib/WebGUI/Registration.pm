@@ -51,6 +51,10 @@ sub definition {
             fieldType   => 'group',
             label       => 'Group to manage this registration',
         },
+        notificationGroupId => {
+            fieldType   => 'group',
+            label       => 'Group to notify when pending accounts are created.',
+        },
         styleTemplateId => {
             fieldType   => 'template',
             label       => 'Style',
@@ -603,14 +607,31 @@ sub www_completeRegistration {
     # If not all steps are completed yet, go to the step form
     return $self->www_viewStep unless $self->registrationStepsComplete;
 
+    # Send email to user 
     my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
     my $mailBody        = $mailTemplate->process( {} );
-    my $mail            = WebGUI::Mail::Send->create($self->session, {
+    my $mail            = WebGUI::Mail::Send->create( $self->session, {
         toUser      => $self->user->userId,
         subject     => $self->get('setupCompleteMailSubject'),
     });
     $mail->addText($mailBody);
     $mail->queue;
+
+    # Send email to managers
+    if ($self->get('notificationGroupId')) {
+        my $mail            = WebGUI::Mail::Send->create( $self->session, {
+            toGroup     => $self->get('notificationGroupId'),
+            subject     => 'Een nieuwe accountaanvraag is ingediend',
+        });
+        $mail->addText(
+            'Een account staat klaar om gecontroleerd te worden op: '
+            . $self->session->url->getSiteURL . $self->session->url->gateway(
+                '',
+                'registration=admin;func=editRegistrationInstanceData;userId='.$self->user->userId.';registrationId='.$self->registrationId
+            )
+        );
+        $mail->queue;
+    }
 
     $self->setRegistrationStatus( 'pending' );
 
