@@ -306,7 +306,7 @@ sub getViewVars {
     my $registrationId  = $self->registration->registrationId;
     
     my $var;
-    $var->{ category_name   } = 'Naam van uw site';
+    $var->{ category_name   } = $self->get('title');
     $var->{ step_number     } = $self->getStepNumber;
     $var->{ comment         } = $self->get('comment');
     $var->{ form_header     } =
