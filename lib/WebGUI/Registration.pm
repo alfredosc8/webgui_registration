@@ -399,6 +399,7 @@ sub hasValidUser {
 
     # Site status checken
     # ie. not pending or complete
+    return 0 unless $self->getRegistrationStatus eq 'setup';
 
     # If a user has been loaded into the Registration that is not a visitor, return true.
     return $self->user && $self->user->userId ne '1';
