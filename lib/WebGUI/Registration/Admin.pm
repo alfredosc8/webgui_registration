@@ -50,10 +50,15 @@ sub getRegistrations {
     my $registrationId  = shift;
     my $status          = shift;
 
-    my @userIds = $session->db->buildArray("select userId from Registration_status where status=? and registrationId=?", [
-        $status,
-        $registrationId,
-    ]);
+    my @userIds = $session->db->buildArray(
+        "select t1.userId from Registration_status as t1, users as t2 "
+        ." where t1.userId=t2.userId and t1.status=? and registrationId=? "
+        ." order by t2.username ", 
+        [
+            $status,
+            $registrationId,
+        ]
+    );
 
     my $output = '<table>';
     foreach (@userIds) {
