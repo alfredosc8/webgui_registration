@@ -131,7 +131,10 @@ sub www_deleteAccount {
 
     foreach my $step ( @{ $registration->getSteps } ) {
         my $deleteMessage = eval { $step->onDeleteAccount };
-        next unless $@;
+        if ( $@ ) {
+            $session->errorHandler->warn("Error occurred in onDelete: $@");
+            next;
+        }
 
         $deleteSteps->{ 'step_' . $step->stepId } = $deleteMessage if $deleteMessage;
     }

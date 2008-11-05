@@ -240,7 +240,7 @@ sub processCategoryDataFromFormPost {
     foreach my $field (@{ $category->getFields }) {
         next unless $field->get('visible');
 
-        my $profileFieldData = $field->formProcess;
+        my $profileFieldData = $field->formProcess( $user );
 
         # Check for required fields.
         if ($profileOverrides->{ $field->getId }->{ required } && !$profileFieldData) {

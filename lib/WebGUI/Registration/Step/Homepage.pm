@@ -260,10 +260,19 @@ sub onDeleteAccount {
     my $output;
 
     # Delete user homepage
-    my $userPageRoot = WebGUI::Asset->newByDynamicClass( $session, $self->getConfigurationData->{ 'deployedPageRoot' } );
+    my $userPageRootUrl = $self->registration->user->profileField( $self->get('urlStorageField' ) );
+    my $userPageRoot;
+
+    if ( $userPageRootUrl ) {
+        $userPageRoot   = WebGUI::Asset->newByUrl( $session, $userPageRootUrl );
+    }
+    else {
+        $userPageRoot = WebGUI::Asset->newByDynamicClass( $session, $self->getConfigurationData->{ 'deployedPageRoot' } );
+    }
 
     # Make really sure the asset we got is the correct one and not for instance the default 404 page.
-    if ( $userPageRoot->getId eq $self->getConfigurationData->{ 'deployedPageRoot' } ) {
+#    if ( $userPageRoot->getId eq $self->getConfigurationData->{ 'deployedPageRoot' } ) {
+    if ( $userPageRoot ) {
         $output = 'Homepage: '.$userPageRoot->getUrl;
 
         $userPageRoot->purge if $doit;

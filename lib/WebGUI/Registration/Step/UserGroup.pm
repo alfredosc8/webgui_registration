@@ -113,7 +113,7 @@ sub onDeleteAccount {
     my $groups = $self->registration->user->getGroups;
     foreach my $groupId ( @{ $groups } ) {
         my $group = WebGUI::Group->new( $session, $groupId );
-        if (scalar(@{ $group->getUsers }) <= 1) {
+        if ($group && scalar(@{ $group->getUsers }) <= 1) {
             push @deleteGroups, $group;
         }
     }
@@ -125,6 +125,10 @@ sub onDeleteAccount {
     if ($doit) {
         $_->delete for (@deleteGroups);
     }    
+    
+    # Clear group cache
+    $session->stow->delete('isInGroup');
+    $session->stow->delete('gotGroupsForUser');
 
     # Clean up step data
     $self->SUPER::onDeleteAccount( $doit );
