@@ -325,11 +325,12 @@ sub www_editRegistrationSave {
 sub www_editRegistrationInstanceData {
     my $session = shift;
     my $error   = shift || [];
+    my $userId  = shift || $session->form->process( 'userId' );
 
     return $session->privilege->insufficient unless canManage( $session );
 
     my $registrationId  = $session->form->process( 'registrationId' );
-    my $userId          = $session->form->process( 'userId'         );
+#    my $userId          = $session->form->process( 'userId'         );
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
 
@@ -431,9 +432,24 @@ sub www_editRegistrationInstanceDataSave {
         push @error, 'Email address is already in use by user: ' . $userByEmail->username;
     }
 
+    # ========== Return to edit screen with errors if an error occurred.
+    return www_editRegistrationInstanceData( $session, \@error ) if @error;
+
+    # ========== Process user account data =============================
+    # Instanciate or create user
+    my $user = WebGUI::User->new( $session, $userId );
+    $user->username( $username );
+    $user->profileField( 'email', $email );
+
+    # Apply auth plugin stuff
+    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
+    $authInstance->editUserFormSave;
+
+    $userId = $user->userId;
+
     # ========== Process and error check submitted form data. ==========
     my $registrationId  = $session->form->process( 'registrationId' );
-    my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
+    my $registration    = WebGUI::Registration->new( $session, $registrationId, $user->userId );
     my $steps           = $registration->getSteps;
 
     return adminConsole( $session, "De gebruiker '". $registration->user->username ."' heeft al een account.", "Approve account" )
@@ -446,21 +462,21 @@ sub www_editRegistrationInstanceDataSave {
     }
 
     # ========== Return to edit screen with errors if an error occurred.
-    return www_editRegistrationInstanceData( $session, \@error ) if @error;
+    return www_editRegistrationInstanceData( $session, \@error, $userId ) if @error;
 
     
     # ========== No errors occurred ====================================
     # Instanciate or create user
-    my $user = WebGUI::User->new( $session, $userId );
-    $user->username( $username );
-    $user->profileField( 'email', $email );
-
-    # Apply auth plugin stuff
-    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
-    $authInstance->editUserFormSave;
+#    my $user = WebGUI::User->new( $session, $userId );
+#    $user->username( $username );
+#    $user->profileField( 'email', $email );
+#
+#    # Apply auth plugin stuff
+#    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
+#    $authInstance->editUserFormSave;
     
     # Set the registration object to use the instanciated user
-    $registration->user( $user );
+#    $registration->user( $user );
 
     # Save the current version tag so that we can the user to his current tag after the application process.
     my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
