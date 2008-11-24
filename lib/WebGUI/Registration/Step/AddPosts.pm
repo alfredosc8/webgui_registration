@@ -32,7 +32,7 @@ sub apply {
     return unless defined $destinationCS;
 
     # Find the source CS
-    my @sourceCSs = @{ $self->getConfigurationData->{ selectedCSs } };
+    my @sourceCSs = @{ $self->getConfigurationData->{ selectedCSs } || [] };
     return unless scalar @sourceCSs;
 
     # Add the posts.
