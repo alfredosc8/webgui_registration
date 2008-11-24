@@ -19,7 +19,8 @@ sub adminConsole {
     my $baseParams      = 'registration=admin;registrationId='.$registrationId;
 
     if ( $session->user->isInGroup( 3 ) ) {
-        $ac->addSubmenuItem( $url->page( 'registration=admin;func=view' ), 'List registrations'      );
+        $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'             ), 'List registrations'      );
+        $ac->addSubmenuItem( $url->page( 'registration=admin;func=addRegistration'  ), 'Add a new registration'  );
     }
     if ( $session->user->isInGroup( 3 ) && $registrationId ) {
         $ac->addSubmenuItem( $url->page( "$baseParams;func=listSteps"   ), 'List registration steps' );
@@ -30,6 +31,8 @@ sub adminConsole {
         $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
         $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
     }
+
+    $ac->setIcon('/extras/spacer.gif');
 
     return $ac->render( $content, $title );
 }
@@ -109,6 +112,36 @@ sub www_addStep {
     #### TODO: catch exception
 
     return adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_createInstanceForExistingUser {
+    my $session = shift;
+
+    return $session->privilege->insufficient unless canManage( $session );
+
+    my $f = WebGUI::HTMLForm->new( $session );
+    $f->hidden(
+        name    => 'registration',
+        value   => 'admin',
+    );
+    $f->hidden(
+        name    => 'func',
+        value   => 'editRegistrationInstanceData',
+    );
+    $f->hidden(
+        name    => 'registrationId',
+        value   => $session->form->process('registrationId'),
+    );
+    $f->user(
+        name    => 'userId',
+        label   => 'Choose',
+    );
+    $f->submit(
+        value   => 'Proceed',
+    );
+
+    return adminConsole( $session, $f->print, 'Add account for existing user' );
 }
 
 #-------------------------------------------------------------------
@@ -299,6 +332,10 @@ sub www_editRegistrationInstanceData {
     my $userId          = $session->form->process( 'userId'         );
 
     my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
+
+    return adminConsole( $session, "De gebruiker '". $registration->user->username ."' heeft al een account.", "Approve account" )
+        if $registration->getRegistrationStatus eq 'approved';
+
     my $steps           = $registration->getSteps;
     my $user            = WebGUI::User->new( $session, $userId ) unless $userId eq 'new';
 
@@ -398,6 +435,9 @@ sub www_editRegistrationInstanceDataSave {
     my $registrationId  = $session->form->process( 'registrationId' );
     my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
     my $steps           = $registration->getSteps;
+
+    return adminConsole( $session, "De gebruiker '". $registration->user->username ."' heeft al een account.", "Approve account" )
+        if $registration->getRegistrationStatus eq 'approved';
 
     foreach my $step ( @{ $steps } ) {
         $step->processStepApprovalData;
@@ -667,6 +707,7 @@ sub www_view {
     my $session = shift;
 
 #    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+#    return $session->privilege->insufficient unless canManage( $session );
 
     my @registrationIds = $session->db->buildArray( 'select registrationId from Registration' );
 
@@ -688,8 +729,7 @@ sub www_view {
         $output .= "<li>$deleteButton $editButton" .  $registration->get('title') . '</li>';
     }
 
-    $output .= '<li><a href="'.$session->url->page('registration=admin;func=addRegistration').'">NEW REG</a>';
-    $output .= '</li></ul>';
+    $output .= '</ul>';
 
     return adminConsole( $session, $output, 'Manage Registrations' );
 }
