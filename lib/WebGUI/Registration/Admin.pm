@@ -374,7 +374,8 @@ sub www_editRegistrationInstanceData {
         label   => 'Email',
         value   => $email,
     );
-    $f->raw(WebGUI::Operation::Auth::getInstance( $session, 'WebGUI', $userId )->editUserForm);
+    # Make sure we do not pass 'new' as a userId to WG::Op:Auth->getInstance as this will create a 'zombie' account. 
+    $f->raw(WebGUI::Operation::Auth::getInstance( $session, 'WebGUI', $userId eq 'new' ? undef : $userId )->editUserForm);
     $f->fieldSetEnd;
 
     foreach my $step ( @{ $steps } ) {
@@ -393,7 +394,6 @@ sub www_editRegistrationInstanceData {
     $f->submit;
 
     my $output;
-
     $output .= 'Errors: <ul><li>'. join( '</li><li>', @$error ) . '</li></ul>' if @$error;
     $output .= $f->print;
 
