@@ -623,7 +623,7 @@ sub www_listSteps {
             .'</li>';       
     }
 
-    my $availableSteps  = { map {$_ => $_} @{ $session->config->get('registrationSteps') } };
+    my $availableSteps  = { map {$_ => $_} @{ $session->config->get('registrationSteps')  || [] } };
     my $addForm         = 
           WebGUI::Form::formHeader( $session )
         . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
