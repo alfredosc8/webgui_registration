@@ -105,7 +105,6 @@ sub newByDynamicClass {
     my $session = shift;
     my $id      = shift;
 
-$session->log->warn( $id );
     # Figure out namespace of step
     my $table   = $class->crud_getTableName( $session );
     my $column  = $class->crud_getTableKey( $session );
@@ -113,6 +112,7 @@ $session->log->warn( $id );
     my $namespace   = $session->db->quickScalar( "select className from $table where $column=?", [
         $id,
     ]);
+    confess "Could not find class name for id $id" unless $namespace;
 
     # Instanciate
     my $crud        = WebGUI::Pluggable::instanciate( $namespace, 'new', [

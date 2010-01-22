@@ -226,17 +226,17 @@ sub getCurrentStep {
     my $session = $self->session;
 
 #    my @registrationStepIds =  map { $_->{stepId} } @{ $self->registrationSteps };
-    my @registrationStepIds = WebGUI::Registration::Step->getAllIds( $session, { sequenceKeyValue => $self->getId } );
+    my $registrationStepIds = WebGUI::Registration::Step->getAllIds( $session, { sequenceKeyValue => $self->getId } );
 
     my $overrideStepId      =  $session->scratch->get( 'overrideStepId' );
 
     # Return override step only if it is also part of this registration.
-    if ( $overrideStepId && isIn( $overrideStepId, @registrationStepIds ) ) {
+    if ( $overrideStepId && isIn( $overrideStepId, @{ $registrationStepIds } ) ) {
         return $self->getStep( $overrideStepId );
     }
 
     # Find first incomplete step and return it
-    foreach my $stepId ( @registrationStepIds ) {
+    foreach my $stepId ( @{ $registrationStepIds } ) {
         # TODO: Catch exception.
         my $step = $self->getStep( $stepId );
 
@@ -377,7 +377,7 @@ sub getStep {
     my $self    = shift;
     my $stepId  = shift;
 
-    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId, $self );
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId );
 
     return $step;
 }
