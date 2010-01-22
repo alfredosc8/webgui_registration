@@ -171,7 +171,7 @@ sub www_deleteAccount {
             next;
         }
 
-        $deleteSteps->{ 'step_' . $step->stepId } = $deleteMessage if $deleteMessage;
+        $deleteSteps->{ 'step_' . $step->getId } = $deleteMessage if $deleteMessage;
     }
 
     # Setup Form
@@ -230,7 +230,7 @@ sub www_deleteAccountConfirm {
     
     # Execute onDelete handler of each step
     foreach my $step ( @{ $registration->getSteps } ) {
-        if ($session->form->process( 'step_'.$step->stepId ) ) {
+        if ($session->form->process( 'step_'.$step->getId ) ) {
             my $message = eval{ $step->onDeleteAccount( 1 ) };
             if ($@) {
                 $message = 
@@ -613,7 +613,7 @@ sub www_listSteps {
 
     $output .= '<fieldset><legend>Registration steps</legend><ul>';
     foreach my $step ( @{ $steps } ) {
-        my $baseParams = 'registration=admin;stepId=' . $step->stepId . ';registrationId=' . $registrationId;
+        my $baseParams = 'registration=admin;stepId=' . $step->getId . ';registrationId=' . $registrationId;
         
         $output .= 
             '<li>'

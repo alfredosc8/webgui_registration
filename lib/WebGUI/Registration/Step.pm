@@ -9,7 +9,6 @@ use Carp;
 
 use Data::Dumper;
 
-private  stepId         => my %stepId;
 private  registration   => my %registration;
 readonly error          => my %error;
 
@@ -25,7 +24,7 @@ sub changeStepDataUrl {
     my $self    = shift;
 
     return $self->session->url->page(
-        'registration=register;func=changeStep;stepId='.$self->stepId.';registrationId='.$self->registration->registrationId
+        'registration=register;func=changeStep;stepId='.$self->getId.';registrationId='.$self->registration->registrationId
     );
 }
 
@@ -126,7 +125,7 @@ sub getEditForm {
     );
     $f->hidden(
         name   => 'stepId',
-        value  => $self->stepId,
+        value  => $self->getId,
     );
     
     tie my %props, 'Tie::IxHash', (
@@ -161,7 +160,7 @@ sub getExportVariablesSelectBox {
     # Loop over all steps and extract relevant export variables.
     foreach my $step ( @steps ) {
         # Stop at this step, since we cannot get data from the future.
-        last if ($step->stepId eq $self->stepId);
+        last if ($step->getId eq $self->getId);
 
         # Fetch the relevant variables from the step.
         my @stepVariables =  
@@ -171,7 +170,7 @@ sub getExportVariablesSelectBox {
     
         # And add to the select box options
         foreach my $variable ( @stepVariables ) {
-            $options{ $step->stepId . '~' . $variable->{name} }  = $step->get('title') . '::' . $variable->{label};
+            $options{ $step->getId . '~' . $variable->{name} }  = $step->get('title') . '::' . $variable->{label};
         }
     }
 
@@ -221,7 +220,7 @@ sub getStepNumber {
     foreach my $step ( @{ $steps } ) {
         $stepCount++ if $step->get('countStep');
 
-        last if $step->stepId eq $self->stepId;
+        last if $step->getId eq $self->getId;
     }
 
     # If no step has a seperate step count we still have to return 1.
@@ -287,12 +286,6 @@ sub new {
 }
 
 #-------------------------------------------------------------------
-sub stepId {
-    my $self = shift;
-    return $self->getId;
-}
-
-#-------------------------------------------------------------------
 sub registration {
     my $self            = shift;
     my $session         = $self->session;
@@ -318,7 +311,7 @@ sub onDeleteAccount {
 
     # Delete step data
     $session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
-        $self->stepId,
+        $self->getId,
         $self->registration->user->userId,
     ]);
 
@@ -384,12 +377,12 @@ sub setConfigurationData {
     my $json = encode_json($configurationData);
    
     $self->session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
-        $self->stepId,
+        $self->getId,
         $userId,
     ]);
     $self->session->db->write('insert into RegistrationStep_accountData set configurationData=?, stepId=?, userId=?', [
         $json,
-        $self->stepId,
+        $self->getId,
         $userId,
     ]);
 }
