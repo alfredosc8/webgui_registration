@@ -243,11 +243,11 @@ sub getViewVars {
 }
 
 #-------------------------------------------------------------------
-sub processPropertiesFromFormPost {
+sub updateFromFormPost {
     my $self    = shift;
     my $session = $self->session;
 
-    $self->SUPER::processPropertiesFromFormPost;
+    $self->SUPER::updateFromFormPost;
 
     $self->update( {
         csContainerRoot => $session->form->process('csContainerRoot'),

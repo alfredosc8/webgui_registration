@@ -284,11 +284,11 @@ sub onDeleteAccount {
 }
 
 #-------------------------------------------------------------------
-sub processPropertiesFromFormPost {
+sub updateFromFormPost {
     my $self    = shift;
     my $session = $self->session;
 
-    $self->SUPER::processPropertiesFromFormPost;
+    $self->SUPER::updateFromFormPost;
 
     $self->update( {
         editGroupId         => $session->form->process('editGroupId'),
