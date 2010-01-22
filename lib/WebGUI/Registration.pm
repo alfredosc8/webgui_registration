@@ -12,9 +12,16 @@ use WebGUI::Utility;
 
 readonly session            => my %session;
 readonly registrationId     => my %registrationId;
-readonly registrationSteps  => my %registrationSteps;
+#readonly registrationSteps  => my %registrationSteps;
 readonly options            => my %options;
 public   user               => my %user;
+
+sub getId {
+    my $self = shift;
+
+    return $self->registrationId;
+}
+
 
 #-------------------------------------------------------------------
 sub definition {
@@ -136,14 +143,14 @@ sub _buildObj {
     my $userId          = shift || $session->user->userId,
     my $self            = { };
 
-    # --- Fetch registration steps from db ----------------------
-    # TODO: Dit kan wel weg denk ik. Functionaliteit zit nu in getSteps.
-    my $registrationSteps = $session->db->buildArrayRefOfHashRefs(
-        'select * from RegistrationStep where registrationId=? order by stepOrder',
-        [
-            $registrationId,
-        ]
-    );
+#    # --- Fetch registration steps from db ----------------------
+#    # TODO: Dit kan wel weg denk ik. Functionaliteit zit nu in getSteps.
+#    my $registrationSteps = $session->db->buildArrayRefOfHashRefs(
+#        'select * from RegistrationStep where registrationId=? order by stepOrder',
+#        [
+#            $registrationId,
+#        ]
+#    );
 
     # TODO: Check whether userId exists.
     $userId = 1 if $userId eq 'new';
@@ -156,7 +163,7 @@ sub _buildObj {
     my $id                      = id $self;
     $session            { $id } = $session;
     $registrationId     { $id } = $registrationId;
-    $registrationSteps  { $id } = $registrationSteps;
+#    $registrationSteps  { $id } = $registrationSteps;
     $options            { $id } = $options;
     $user               { $id } = $user;
 
@@ -218,7 +225,9 @@ sub getCurrentStep {
     my $self    = shift;
     my $session = $self->session;
 
-    my @registrationStepIds =  map { $_->{stepId} } @{ $self->registrationSteps };
+#    my @registrationStepIds =  map { $_->{stepId} } @{ $self->registrationSteps };
+    my @registrationStepIds = WebGUI::Registration::Step->getAllIds( $session, { sequenceKeyValue => $self->getId } );
+
     my $overrideStepId      =  $session->scratch->get( 'overrideStepId' );
 
     # Return override step only if it is also part of this registration.
@@ -376,21 +385,28 @@ sub getStep {
 #-------------------------------------------------------------------
 sub getSteps {
     my $self    = shift;
-    
-    my @steps;
-    my @stepIds = $self->session->db->buildArray(
-        'select stepId from RegistrationStep where registrationId=? order by stepOrder',
-        [
-            $self->registrationId,
-        ]
-    );
+    my $session = $self->session;
+   
+    my $stepIds = WebGUI::Registration::Step->getAllIds( $session, { sequenceKeyValue => $self->getId} );
 
-    foreach my $stepId (@stepIds) {
-        my $step = $self->getStep( $stepId );
-        push @steps, $step;
-    }
+    my @steps   = map { WebGUI::Registration::Step->newByDynamicClass( $session, $_ ) } @{ $stepIds };
 
     return \@steps;
+
+#    my @steps;
+#    my @stepIds = $self->session->db->buildArray(
+#        'select stepId from RegistrationStep where registrationId=? order by stepOrder',
+#        [
+#            $self->registrationId,
+#        ]
+#    );
+#
+#    foreach my $stepId (@stepIds) {
+#        my $step = $self->getStep( $stepId );
+#        push @steps, $step;
+#    }
+#
+#    return \@steps;
 }
 
 #-------------------------------------------------------------------

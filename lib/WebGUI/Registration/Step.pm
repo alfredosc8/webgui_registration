@@ -5,36 +5,38 @@ use Class::InsideOut qw{ :std };
 use WebGUI::HTMLForm;
 use WebGUI::Registration;
 use JSON;
+use Carp;
 
 use Data::Dumper;
 
-readonly session        => my %session;
-readonly stepId         => my %stepId;
-readonly options        => my %options;
-readonly registration   => my %registration;
+private  stepId         => my %stepId;
+#readonly options        => my %options;
+private  registration   => my %registration;
 readonly error          => my %error;
 
-#-------------------------------------------------------------------
-sub _buildObj {
-    my $class           = shift;
-    my $session         = shift;
-    my $stepId          = shift;
-    my $registration    = shift;
-    my $options         = shift || {};
-    my $self            = {};
+use base qw{ WebGUI::Crud::Dynamic };
 
-    bless    $self, $class;
-    register $self;
-
-    my $id                  = id $self;
-    $session        { $id } = $session;
-    $stepId         { $id } = $stepId;
-    $options        { $id } = $options;
-    $registration   { $id } = $registration;
-    $error          { $id } = [];
-
-    return $self;
-}
+##-------------------------------------------------------------------
+#sub _buildObj {
+#    my $class           = shift;
+#    my $session         = shift;
+#    my $stepId          = shift;
+#    my $registration    = shift;
+##    my $options         = shift || {};
+#    my $self            = {};
+#
+#    bless    $self, $class;
+#    register $self;
+#
+#    my $id                  = id $self;
+#    $session        { $id } = $session;
+#    $stepId         { $id } = $stepId;
+##    $options        { $id } = $options;
+#    $registration   { $id } = $registration;
+#    $error          { $id } = [];
+#
+#    return $self;
+#}
 
 #-------------------------------------------------------------------
 sub apply {
@@ -50,91 +52,135 @@ sub changeStepDataUrl {
     );
 }
 
-#-------------------------------------------------------------------
-sub create {
-    my $class           = shift;
-    my $session         = shift;
-    my $registration    = shift;
-    my $stepId          = $session->id->generate;
-    my $namespace       = $class->definition( $session )->[0]->{ namespace };
+##-------------------------------------------------------------------
+#sub create {
+#    my $class           = shift;
+#    my $session         = shift;
+#    my $registration    = shift;
+#    my $stepId          = $session->id->generate;
+#    my $namespace       = $class->definition( $session )->[0]->{ namespace };
+#
+#    my $maxStepOrder    = $session->db->quickScalar(
+#        'select max(stepOrder) from RegistrationStep where registrationId=?',
+#        [
+#            $registration->registrationId,
+#        ]
+#    );
+#    
+#    $maxStepOrder ||= 1;
+#
+#    $session->db->write(
+#        'insert into RegistrationStep set stepId=?, registrationId=?, options=?, stepOrder=?, namespace=?', 
+#        [
+#            $stepId,
+#            $registration->registrationId,
+#            '{ }',
+#            $maxStepOrder + 1,
+#            $namespace,
+#        ]
+#    );
+#
+#    my $self = _buildObj( $class, $session, $stepId, $registration );
+#
+#    return $self;
+#}
 
-    my $maxStepOrder    = $session->db->quickScalar(
-        'select max(stepOrder) from RegistrationStep where registrationId=?',
-        [
-            $registration->registrationId,
-        ]
-    );
-    
-    $maxStepOrder ||= 1;
-
-    $session->db->write(
-        'insert into RegistrationStep set stepId=?, registrationId=?, options=?, stepOrder=?, namespace=?', 
-        [
-            $stepId,
-            $registration->registrationId,
-            '{ }',
-            $maxStepOrder + 1,
-            $namespace,
-        ]
-    );
-
-    my $self = _buildObj( $class, $session, $stepId, $registration );
-
-    return $self;
+sub hasStepCount {
+    return 1;
 }
 
 #-------------------------------------------------------------------
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift || [ ];
+    my $definition  = $class->SUPER::crud_definition( $session );
 
-    # Flatten properties from definitions
-    my %flatDefinition;
-    foreach my $def (@{ $definition }) {
-        %flatDefinition = ( %flatDefinition, %{ $def } );
-    }
-    delete $flatDefinition{ properties };
+    $definition->{ tableName        } = 'RegistrationStep';
+    $definition->{ tableKey         } = 'stepId';
+    $definition->{ registrationId   } = 'registrationId';
 
-    tie my %fields, 'Tie::IxHash', (
-        title   => {
-            fieldType   => 'text',
-            label       => 'title',
-#            label       => $i18n->echo('title'),
-#            hoverHelp   => $i18n->echo('title help'),
-        },
-        comment => {
-            fieldType   => 'HTMLArea',
-            label       => 'Comments',
-        },
-    );
-    $fields{ countStep }    = {
-        fieldType       => 'yesNo',
-        label           => 'Count as seperate step?',
-        defaultValue    => 1,
-    } unless $flatDefinition{ noStepCount };
-
-    push @{ $definition }, {
-        name        => 'Registration Step',
-        properties  => \%fields,
-        namespace   => 'WebGUI::Registration::Step',
-        %flatDefinition
+    $definition->{ properties }->{ registrationId } = {
+        fieldType       => 'guid',
+        noFormPost      => 1,
     };
+    $definition->{ properties }->{ title    } = {
+        fieldType       => 'text',
+        label           => 'title',
+    };
+    $definition->{ properties }->{ comment  } = {
+        fieldType       => 'HTMLArea',
+        label           => 'Comments',
+    };
+
+    if ( $class->hasStepCount ) {
+        $definition->{ dynamic   }->{ countStep } = {
+            fieldType       => 'yesNo',
+            label           => 'Count as seperate step?',
+            defaultValue    => 1,
+        };
+    }
 
     return $definition;
 }
+
+sub name {
+    return 'Registration Step';
+}
+
+##-------------------------------------------------------------------
+#sub definition {
+#    my $class       = shift;
+#    my $session     = shift;
+#    my $definition  = shift || [ ];
+#
+#    # Flatten properties from definitions
+#    my %flatDefinition;
+#    foreach my $def (@{ $definition }) {
+#        %flatDefinition = ( %flatDefinition, %{ $def } );
+#    }
+#    delete $flatDefinition{ properties };
+#
+#    tie my %fields, 'Tie::IxHash', (
+#        title   => {
+#            fieldType   => 'text',
+#            label       => 'title',
+##            label       => $i18n->echo('title'),
+##            hoverHelp   => $i18n->echo('title help'),
+#        },
+#        comment => {
+#            fieldType   => 'HTMLArea',
+#            label       => 'Comments',
+#        },
+#    );
+#    $fields{ countStep }    = {
+#        fieldType       => 'yesNo',
+#        label           => 'Count as seperate step?',
+#        defaultValue    => 1,
+#    } unless $flatDefinition{ noStepCount };
+#
+#    push @{ $definition }, {
+#        name        => 'Registration Step',
+#        properties  => \%fields,
+#        namespace   => 'WebGUI::Registration::Step',
+#        %flatDefinition
+#    };
+#
+#    return $definition;
+#}
 
 #-------------------------------------------------------------------
 sub delete {
     my $self    = shift;
     my $session = $self->session;
 
-    $session->db->write('delete from RegistrationStep where stepId=?', [
-        $self->stepId,
-    ]);
+#       $session->db->write('delete from RegistrationStep where stepId=?', [
+#        $self->stepId,
+#    ]);
     $session->db->write('delete from RegistrationStep_accountData where stepId=?', [
-        $self->stepId,
+        $self->getId,
     ]);
+
+    $self->SUPER::delete;
 }
 
 #-------------------------------------------------------------------
@@ -150,15 +196,15 @@ sub exportedVariables {
     return \@exports;
 }
 
-#-------------------------------------------------------------------
-sub get {
-    my $self    = shift;
-    my $key     = shift;
-
-    return $self->options->{ $key } if $key;
-
-    return { %{ $self->options->{ $key } } };
-}
+##-------------------------------------------------------------------
+#sub get {
+#    my $self    = shift;
+#    my $key     = shift;
+#
+#    return $self->options->{ $key } if $key;
+#
+#    return { %{ $self->options->{ $key } } };
+#}
 
 #-------------------------------------------------------------------
 sub getConfigurationData {
@@ -169,7 +215,7 @@ sub getConfigurationData {
         'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
         [
             $userId,
-            $self->stepId,
+            $self->getId,
         ]
     );
  
@@ -197,22 +243,37 @@ sub getEditForm {
 
     my $f = WebGUI::HTMLForm->new( $session );
     $f->hidden(
-        -name   => 'registration',
-        -value  => 'admin',
+        name   => 'registration',
+        value  => 'admin',
     );
     $f->hidden(
-        -name   => 'func',
-        -value  => 'editStepSave',
+        name   => 'func',
+        value  => 'editStepSave',
     );
     $f->hidden(
-        -name   => 'stepId',
-        -value  => $self->stepId,
+        name   => 'stepId',
+        value  => $self->stepId,
     );
 #    $f->hidden(
 #        -name   => 'registrationId',
 #        -value  => $self->registration->registrationId,
 #    );
-    $f->dynamicForm( $self->definition( $session ), 'properties', $self );
+    tie my %props, 'Tie::IxHash', (
+        %{ $self->crud_getProperties( $session )        },
+        %{ $self->crud_getDynamicProperties( $session ) },
+    );
+    foreach my $key ( keys %props ) {
+        next if $props{ $key }{ noFormPost };
+
+        $f->dynamicField(
+            %{ $props{ $key } },
+            name    => $key,
+            value   => $self->get( $key )
+        );
+    };
+    
+#    $f->dynamicForm( [ $self->crud_definition( $session ) ], 'properties', $self );
+    
 
     return $f;
 }
@@ -295,7 +356,7 @@ sub getStepNumber {
         last if $step->stepId eq $self->stepId;
     }
 
-    # If no step has a seperate step count we still have to return 1.
+# If no step has a seperate step count we still have to return 1.
     return $stepCount || 1;
 }
 
@@ -321,27 +382,27 @@ sub getViewVars {
     return $var;
 }
 
-#-------------------------------------------------------------------
-sub newByDynamicClass {
-    my $class           = shift;
-    my $session         = shift;
-    my $stepId          = shift;
-    my $registration    = shift;
-
-    # Figure out namespace of step
-    my $namespace   = $session->db->quickScalar( 'select namespace from RegistrationStep where stepId=?', [
-        $stepId,
-    ]);
-
-    # Instanciate
-    my $step        = WebGUI::Pluggable::instanciate( $namespace, 'new', [
-        $session,
-        $stepId,
-        $registration,
-    ]);
-
-    return $step;
-}
+##-------------------------------------------------------------------
+#sub newByDynamicClass {
+#    my $class           = shift;
+#    my $session         = shift;
+#    my $stepId          = shift;
+#    my $registration    = shift;
+#
+#    # Figure out namespace of step
+#    my $namespace   = $session->db->quickScalar( 'select namespace from RegistrationStep where stepId=?', [
+#        $stepId,
+#    ]);
+#
+#    # Instanciate
+#    my $step        = WebGUI::Pluggable::instanciate( $namespace, 'new', [
+#        $session,
+#        $stepId,
+#        $registration,
+#    ]);
+#
+#    return $step;
+#}
 
 
 #-------------------------------------------------------------------
@@ -359,38 +420,73 @@ sub isInvisible {
     return 0;
 }
 
-#-------------------------------------------------------------------
-sub namespace {
-    my $self    = shift;
+##-------------------------------------------------------------------
+#sub namespace {
+#    my $self    = shift;
+#
+#    return $self->definition( $self->session )->[0]->{ namespace };
+#}
 
-    return $self->definition( $self->session )->[0]->{ namespace };
+##-------------------------------------------------------------------
+#sub new {
+#    my $class           = shift;
+#    my $session         = shift;
+#    my $stepId          = shift || die 'no step id passed';
+#    my $registration    = shift;
+#
+#    # If no registration is passed, we'll have to instanciate it ourselves.
+#    unless ($registration) {
+#        my $registrationId = 
+#            $session->db->quickScalar('select registrationId from RegistrationStep where stepId=?', [
+#                $stepId,
+#            ]);
+#        $registration = WebGUI::Registration->new( $session, $registrationId );
+#    }
+#    
+#    # Fetch properties from db.
+#    my $properties  = $session->db->quickHashRef( 'select * from RegistrationStep where stepId=?', [
+#        $stepId,
+#    ]);
+#
+#    # Setup object.
+#    my $self = $class->_buildObj( $session, $stepId, $registration, decode_json( $properties->{ options } ) );
+#
+#    return $self;
+#}
+
+sub new {
+    my $class   = shift;
+    my $session = shift;
+    my $stepId  = shift;
+
+    my $self    = $class->SUPER::new( $session, $stepId );
+    register $self;
+
+    my $id                  = id $self;
+    $registration   { $id } = undef;
+    $error          { $id } = [];
+
+    return $self;
+}
+
+sub stepId {
+    my $self = shift;
+    return $self->getId;
 }
 
 #-------------------------------------------------------------------
-sub new {
-    my $class           = shift;
-    my $session         = shift;
-    my $stepId          = shift || die 'no step id passed';
-    my $registration    = shift;
-
-    # If no registration is passed, we'll have to instanciate it ourselves.
-    unless ($registration) {
-        my $registrationId = 
-            $session->db->quickScalar('select registrationId from RegistrationStep where stepId=?', [
-                $stepId,
-            ]);
-        $registration = WebGUI::Registration->new( $session, $registrationId );
-    }
+sub registration {
+    my $self            = shift;
+    my $session         = $self->session;
+    my $registration    = $registration{ id $self };
     
-    # Fetch properties from db.
-    my $properties  = $session->db->quickHashRef( 'select * from RegistrationStep where stepId=?', [
-        $stepId,
-    ]);
+    if ( !$registration ) {    
+        $registration = WebGUI::Registration->new( $session, $self->get('registrationId') );
+        croak "Could not instanciate Registration " . $self->get('registrationId') unless $registration;
+        $registration{ id $self } = $registration;
+    }
 
-    # Setup object.
-    my $self = $class->_buildObj( $session, $stepId, $registration, decode_json( $properties->{ options } ) );
-
-    return $self;
+    return $registration;
 }
 
 #-------------------------------------------------------------------
@@ -411,24 +507,24 @@ sub onDeleteAccount {
     return;
 }
 
-#-------------------------------------------------------------------
-sub processPropertiesFromFormPost {
-    my $self    = shift;
-    my $session = $self->session;
-    my %properties;
-
-    foreach my $definition ( @{ $self->definition( $session ) } ) {
-        foreach my $property ( keys %{ $definition->{properties} } ) {
-            $properties{$property} = $session->form->process(
-                $property,
-                $definition->{properties}{$property}{fieldType},
-                $definition->{properties}{$property}{defaultValue}
-            );
-        }
-    }
-#    $properties{title} = $fullDefinition->[0]{name} if ($properties{title} eq "" || lc($properties{title}) eq "untitled");
-    $self->update(\%properties);
-}
+##-------------------------------------------------------------------
+#sub processPropertiesFromFormPost {
+#    my $self    = shift;
+#    my $session = $self->session;
+#    my %properties;
+#
+#    foreach my $definition ( @{ $self->definition( $session ) } ) {
+#        foreach my $property ( keys %{ $definition->{properties} } ) {
+#            $properties{$property} = $session->form->process(
+#                $property,
+#                $definition->{properties}{$property}{fieldType},
+#                $definition->{properties}{$property}{defaultValue}
+#            );
+#        }
+#    }
+##    $properties{title} = $fullDefinition->[0]{name} if ($properties{title} eq "" || lc($properties{title}) eq "untitled");
+#    $self->update(\%properties);
+#}
 
 #-------------------------------------------------------------------
 sub processStepFormData { 
@@ -529,21 +625,21 @@ sub setExportVariable {
     $self->setConfigurationData( $key, $value );
 }
 
-#-------------------------------------------------------------------
-sub update {
-    my $self        = shift;
-    my $properties  = shift;
-    my $session     = $self->session;
-    
-    my $newOptions  = { %{ $self->options }, %{ $properties } };
-    
-    $options{ id $self } = $newOptions;
-
-    $session->db->write('update RegistrationStep set options=? where stepId=?', [
-        encode_json( $newOptions ),
-        $self->stepId,
-    ]);
-}
+##-------------------------------------------------------------------
+#sub update {
+#    my $self        = shift;
+#    my $properties  = shift;
+#    my $session     = $self->session;
+#    
+#    my $newOptions  = { %{ $self->options }, %{ $properties } };
+#    
+#    $options{ id $self } = $newOptions;
+#
+#    $session->db->write('update RegistrationStep set options=? where stepId=?', [
+#        encode_json( $newOptions ),
+#        $self->stepId,
+#    ]);
+#}
 
 #-------------------------------------------------------------------
 sub www_edit {

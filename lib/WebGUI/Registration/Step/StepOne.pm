@@ -4,26 +4,25 @@ use strict;
 
 use base qw{ WebGUI::Registration::Step };
 
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift || [ ];
+    my $definition  = $class->SUPER::crud_definition( $session );
 
-    tie my %fields, "Tie::IxHash", (
-        defaultSetting  => {
-            fieldType       => 'yesNo',
-            label           => 'Default setting',
-            defaultValue    => 0,
-        },
-    );
-
-    push @{ $definition }, {
-        name        => 'StepOne',
-        properties  => \%fields,
-        namespace   => 'WebGUI::Registration::Step::StepOne',
+    $definition->{ dynamic }->{ defaultSetting } => {
+        fieldType       => 'yesNo',
+        label           => 'Default setting',
+        defaultValue    => 0,
     };
 
-    return $class->SUPER::definition( $session, $definition );
+    return $definition;
+#    push @{ $definition }, {
+#        name        => 'StepOne',
+#        properties  => \%fields,
+#        namespace   => 'WebGUI::Registration::Step::StepOne',
+#    };
+#
+#    return $class->SUPER::definition( $session, $definition );
 }
 
 

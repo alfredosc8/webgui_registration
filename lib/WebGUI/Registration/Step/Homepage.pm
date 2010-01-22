@@ -14,10 +14,10 @@ sub apply {
 }
 
 #-------------------------------------------------------------------
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift;
+    my $definition  = $class->SUPER::crud_definition( $session );
     my $i18n        = WebGUI::International->new( $session, 'Registration_Step_Homepage' );
 
     # Create a hash containing all profile fields of the form: ID => Category::FieldName. 
@@ -26,45 +26,39 @@ sub definition {
         map { $_->getId => $_->getCategory->getLabel . '::' . $_->getLabel }
             @{ WebGUI::ProfileField->getFields($session) };
 
-    tie my %fields, 'Tie::IxHash', (
-        userPageContainer       => {
-            fieldType       => 'asset',
-            tab             => 'properties',
-            label           => $i18n->echo('Put user pages on'),
-        },
-        packageContainer        => {
-            fieldType       => 'asset',
-            tab             => 'properties',
-            label           => $i18n->echo('Fetch packages from'),
-        },
-        makeUserPageOwner       => {
-            fieldType       => 'yesNo',
-            tab             => 'properties',
-            label           => $i18n->echo('Make user owner of his pages'),
-        },
-        urlStorageField         => {
-            fieldType       => 'selectBox',
-            label           => 'Store homepage url in field',
-            options         => \%profileFields,
-        },
-    );
+    $definition->{ dynamic }->{ userPageContainer   } = {
+        fieldType       => 'asset',
+        tab             => 'properties',
+        label           => $i18n->echo('Put user pages on'),
+    }
+    $definition->{ dynamic }->{ packageContainer    } = {
+        fieldType       => 'asset',
+        tab             => 'properties',
+        label           => $i18n->echo('Fetch packages from'),
+    }
+    $definition->{ dynamic }->{ makeUserPageOwner   } = {
+        fieldType       => 'yesNo',
+        tab             => 'properties',
+        label           => $i18n->echo('Make user owner of his pages'),
+    }
+    $definition->{ dynamic }->{ urlStorageField     } = {
+        fieldType       => 'selectBox',
+        label           => 'Store homepage url in field',
+        options         => \%profileFields,
+    };
 
-    my $exports     = [
+    return $definition;
+}
+
+#-------------------------------------------------------------------
+sub exports {
+    return [
         {
             name    => 'deployedPageRoot',
             type    => 'assetId',
             label   => 'Root of deployed pages',
         },
     ];
-
-    push @{ $definition }, {
-        name        => 'Homepage',
-        properties  => \%fields,
-        exports     => $exports,
-        namespace   => 'WebGUI::Registration::Step::Homepage',
-    };
-
-    return $class->SUPER::definition( $session, $definition );
 }
 
 #-------------------------------------------------------------------

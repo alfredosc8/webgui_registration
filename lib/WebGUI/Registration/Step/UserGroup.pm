@@ -35,56 +35,52 @@ sub apply {
 }
 
 #-------------------------------------------------------------------
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift;
+    my $definition  = $class->SUPER::crud_definition( $session );
     my $i18n        = WebGUI::International->new( $session, 'Registration_Step_UserGroup' );
 
-    tie my %fields, 'Tie::IxHash', (
-        groupNamePrefix         => {
-            fieldType           => 'text',
-            tab                 => 'properties',
-            label               => 'Group name prefix',
-        },
-        addUserToGroup          => {
-            fieldType           => 'yesNo',
-            tab                 => 'properties',
-            label               => $i18n->echo('Add user to user group'),
-            defaultValue        => 1,
-        },
-        userIsGroupAdmin        => {
-            fieldType           => 'yesNo',
-            tab                 => 'properties',
-            label               => $i18n->echo('Make user group admin'),
-            defaultValue        => 0,
-        },
-        additionalGroups        => {
-            fieldType           => 'group',
-            tab                 => 'properties',
-            label               => $i18n->echo('Add additional groups to user group'),
-            multiple            => 1,
-            size                => 5,
-        },
-    );
+    $definition->{ dynamic }->{ groupNamePrefix     } = {
+        fieldType           => 'text',
+        tab                 => 'properties',
+        label               => 'Group name prefix',
+    };
+    $definition->{ dynamic }->{ addUserToGroup      } = {
+        fieldType           => 'yesNo',
+        tab                 => 'properties',
+        label               => $i18n->echo('Add user to user group'),
+        defaultValue        => 1,
+    };
+    $definition->{ dynamic }->{ userIsGroupAdmin    } = {
+        fieldType           => 'yesNo',
+        tab                 => 'properties',
+        label               => $i18n->echo('Make user group admin'),
+        defaultValue        => 0,
+    };
+    $definition->{ dynamic }->{ additionalGroups    } = {
+        fieldType           => 'group',
+        tab                 => 'properties',
+        label               => $i18n->echo('Add additional groups to user group'),
+        multiple            => 1,
+        size                => 5,
+    };
 
-    my $exports = [
+    return $definition;
+}
+
+sub exports {
+    return [
         {
             name    => 'userGroup',
             type    => 'groupId',
             label   => 'Created user group',
         },
     ];
- 
-    push @{ $definition }, {
-        name        => 'UserGroup',
-        properties  => \%fields,
-        exports     => $exports,
-        namespace   => 'WebGUI::Registration::Step::UserGroup',
-        noStepCount => 1,
-    };
+}
 
-    return $class->SUPER::definition( $session, $definition ); 
+sub hasUserInteraction {
+    return 0;
 }
 
 #-------------------------------------------------------------------

@@ -18,30 +18,25 @@ sub apply {
 }
 
 #-------------------------------------------------------------------
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift;
-    my $i18n        = WebGUI::International->new( $session, 'Registration_Step_UserGroup' );
+    my $definition  = $class->SUPER::crud_definition( $session );
 
-    tie my %fields, 'Tie::IxHash', (
-        addUserToGroups         => {
-            fieldType           => 'group',
-            tab                 => 'properties',
-            label               => $i18n->echo('Add user to groups'),
-            multiple            => 1,
-            size                => 5,
-        },
-    );
-
-    push @{ $definition }, {
-        name        => 'UserGroup',
-        properties  => \%fields,
-        namespace   => 'WebGUI::Registration::Step::AddUserToGroups',
-        noStepCount => 1,
+    $definition->{ dynamic }->{ addUserToGroups } => {
+        fieldType           => 'group',
+        tab                 => 'properties',
+        label               => 'Add user to groups',
+        multiple            => 1,
+        size                => 5,
     };
 
-    return $class->SUPER::definition( $session, $definition ); 
+    return $definition;
+}
+
+#-------------------------------------------------------------------
+sub hasUserInteraction {
+    return 0;
 }
 
 #-------------------------------------------------------------------

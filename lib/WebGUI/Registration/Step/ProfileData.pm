@@ -33,27 +33,21 @@ sub apply {
 }
 
 #-------------------------------------------------------------------
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift;
+    my $definition  = $class->SUPER::crud_definition( $session );
 
-    tie my %fields, "Tie::IxHash", (
-        profileOverrides    => {
-            fieldType   => 'readOnly',
-        },
-        profileSteps => {
-            fieldType   => 'readOnly',
-        },
-    );
-
-    push @{ $definition }, {
-        name        => 'ProfileData',
-        properties  => \%fields,
-        namespace   => 'WebGUI::Registration::Step::ProfileData',
+    $definition->{ dynamic }->{ profileOverrides    } = {
+        fieldType   => 'readOnly',
+        noFormPost  => 1,
+    };
+    $definition->{ dynamic }->{ profileSteps        } = {
+        fieldType   => 'readOnly',
+        noFormPost  => 1,
     };
 
-    return $class->SUPER::definition( $session, $definition );
+    return $definition;
 }
 
 #-------------------------------------------------------------------
@@ -258,10 +252,10 @@ sub processCategoryDataFromFormPost {
 }
 
 #-------------------------------------------------------------------
-sub processPropertiesFromFormPost {
+sub updateFromFormPost {
     my $self = shift;
 
-    $self->SUPER::processPropertiesFromFormPost;
+    $self->SUPER::updateFromFormPost;
 
     # Process profile overrides
     my $profileOverrides = {};

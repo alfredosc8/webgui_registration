@@ -107,40 +107,31 @@ sub copyMedicalData {
 
 
 #-------------------------------------------------------------------
-sub definition {
+sub crud_definition {
     my $class       = shift;
     my $session     = shift;
-    my $definition  = shift;
-    my $i18n        = WebGUI::International->new( $session, 'Registration_Step_UserGroup' );
+    my $definition  = $class->SUPER::crud_definition( $session );
 
-    tie my %fields, 'Tie::IxHash', (
-        sourceCSContainer   => {
-            fieldType   => 'asset',
-            tab         => 'properties',
-            label       => $i18n->echo('Medical data master'),
-        },
+    $definition->{ dynamic }->{ sourceCSContainer    } = {
+        fieldType   => 'asset',
+        tab         => 'properties',
+        label       => 'Source CS container',
+    };
         ##### Nieuwe opties #####
-#        csTreeTopLevel      => {
-#            fieldType   => 'asset',  #### eg. the top level page of a deployed package
-#            label       => 'Top level page of the branch containing the target CS.',
-#        },
-        csIdentifier        => {
-            fieldType   => 'text',
-            label       => 'Keyword to identify target CS within branch.',
-        },
-        removeIdentifier    => {
-            fieldType   => 'yesNo',
-            label       => 'Remove identifier from target CS after adding posts?',
-        },
-    );
-
-    push @{ $definition }, {
-        name        => 'AddPosts',
-        properties  => \%fields,
-        namespace   => 'WebGUI::Registration::Step::AddPosts',
+#    $definition->{ dynamic }->{ csTreeTopLevel      } = {
+#        fieldType   => 'asset',  #### eg. the top level page of a deployed package
+#        label       => 'Top level page of the branch containing the target CS.',
+#    },
+    $definition->{ dynamic }->{ csIdentifier         } = {
+        fieldType   => 'text',
+        label       => 'Keyword to identify target CS within branch.',
+    };
+    $definition->{ dynamic }->{ removeIdentifier     } = {
+        fieldType   => 'yesNo',
+        label       => 'Remove identifier from target CS after adding posts?',
     };
 
-    return $class->SUPER::definition( $session, $definition ); 
+    return $definition;
 }
 
 #-------------------------------------------------------------------

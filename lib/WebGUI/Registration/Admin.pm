@@ -105,9 +105,11 @@ sub www_addStep {
     my $step = eval {
         WebGUI::Pluggable::instanciate( $namespace, 'create', [
             $session,
-            $registration,
+            { registrationId => $registrationId },
         ] );
     };
+
+    $session->log->warn( "ERRORT: $@" ) if $@;
 
     #### TODO: catch exception
 
@@ -557,7 +559,8 @@ sub www_editStepSave {
     my $stepId  = $session->form->process('stepId');
     my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
 
-    $step->processPropertiesFromFormPost;
+    $step->updateFromFormPost;
+#    $step->processPropertiesFromFormPost;
 
     return www_listSteps( $session, $step->registration->registrationId );
 }
