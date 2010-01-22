@@ -85,7 +85,7 @@ sub changeStepDataUrl {
 #    return $self;
 #}
 
-sub hasStepCount {
+sub hasUserInteraction {
     return 1;
 }
 
@@ -112,7 +112,7 @@ sub crud_definition {
         label           => 'Comments',
     };
 
-    if ( $class->hasStepCount ) {
+    if ( $class->hasUserInteraction ) {
         $definition->{ dynamic   }->{ countStep } = {
             fieldType       => 'yesNo',
             label           => 'Count as seperate step?',
