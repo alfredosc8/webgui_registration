@@ -318,7 +318,7 @@ sub www_editRegistrationSave {
     my $registrationId  = $session->form->process('registrationId');
     my $registration    = WebGUI::Registration->new( $session, $registrationId );
 
-    $registration->processPropertiesFromFormPost;
+    $registration->updateFromFormPost;
 
     return www_view( $session );
 }
@@ -689,10 +689,11 @@ sub www_view {
 #    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
 #    return $session->privilege->insufficient unless canManage( $session );
 
-    my @registrationIds = $session->db->buildArray( 'select registrationId from Registration' );
+#    my @registrationIds = $session->db->buildArray( 'select registrationId from Registration' );
+    my $registrationIds = WebGUI::Registration->getAllIds( $session );
 
     my $output = '<ul>';
-    foreach my $id ( @registrationIds ) {
+    foreach my $id ( @{ $registrationIds } ) {
         my $registration    = WebGUI::Registration->new( $session, $id );
 
         next unless canManage( $session, $id );

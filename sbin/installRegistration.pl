@@ -21,16 +21,57 @@ GetOptions(
 
 my $session = start( $webguiRoot, $configFile );
 
+installRegistrationTables( $session );
+addUrlTriggerSetting( $session );
 installRegistrationStepTables( $session );
 
 finish( $session );
 
 #----------------------------------------------------------------------------
 sub installRegistrationStepTables {
-    my $session = shift || die 'no session';;
-    print "Installiung registration step table...";
+    my $session = shift || die 'no session';
+    print "Installing registration step table...";
 
     WebGUI::Registration::Step->crud_createTable( $session );
+
+    print "Done\n";
+}
+
+sub addUrlTriggerSetting {
+    my $session = shift;
+    print "Adding setting to store trigger urls...";
+
+    $session->setting->add( 'registrationUrlTriggers', '{}' );
+
+    print "Done\n";
+}
+
+#----------------------------------------------------------------------------
+sub installRegistrationTables {
+    my $session = shift || die 'no session';
+    print "Installing registration tables...";
+
+    WebGUI::Registration->crud_createTable( $session );
+    
+    $session->db->write(<<EO_STATUS);
+    CREATE TABLE `Registration_status` (
+        `registrationId` char(22) NOT NULL,
+        `userId` char(22) NOT NULL,
+        `status` char(20) NOT NULL default 'setup',
+        `lastUpdate` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+        PRIMARY KEY  (`registrationId`,`userId`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+EO_STATUS
+   
+    $session->db->write(<<EO_ACCT_DATA);
+    CREATE TABLE `RegistrationStep_accountData` (
+        `stepId` char(22) NOT NULL,
+        `userId` char(22) NOT NULL,
+        `status` char(20) default NULL,
+        `configurationData` text,
+        PRIMARY KEY  (`stepId`,`userId`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+EO_ACCT_DATA
 
     print "Done\n";
 }
