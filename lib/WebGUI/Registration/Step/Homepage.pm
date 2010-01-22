@@ -30,17 +30,17 @@ sub crud_definition {
         fieldType       => 'asset',
         tab             => 'properties',
         label           => $i18n->echo('Put user pages on'),
-    }
+    };
     $definition->{ dynamic }->{ packageContainer    } = {
         fieldType       => 'asset',
         tab             => 'properties',
         label           => $i18n->echo('Fetch packages from'),
-    }
+    };
     $definition->{ dynamic }->{ makeUserPageOwner   } = {
         fieldType       => 'yesNo',
         tab             => 'properties',
         label           => $i18n->echo('Make user owner of his pages'),
-    }
+    };
     $definition->{ dynamic }->{ urlStorageField     } = {
         fieldType       => 'selectBox',
         label           => 'Store homepage url in field',
