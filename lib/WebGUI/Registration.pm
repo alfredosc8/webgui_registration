@@ -11,16 +11,7 @@ use Data::Dumper;
 use WebGUI::Utility;
 use Tie::IxHash;
 
-#readonly session            => my %session;
-#readonly registrationId     => my %registrationId;
-#readonly options            => my %options;
 public   user               => my %user;
-
-#sub getId {
-#    my $self = shift;
-#
-#    return $self->registrationId;
-#}
 
 use base qw{ WebGUI::Crud };
 
@@ -133,158 +124,10 @@ sub crud_definition {
     return $definition;
 };
 
-##-------------------------------------------------------------------
-#sub definition {
-#    my $class       = shift;
-#    my $session     = shift;
-#    my $definition  = shift;
-#
-#    tie my %fields, 'Tie::IxHash', (
-#        title   => {
-#            fieldType   => 'text',
-#            label       => 'Title',
-#        },
-#        url     => {
-#            fieldType   => 'text',
-#            label       => 'URL',
-#        },
-#        countLoginAsStep => {
-#            fieldType   => 'yesNo',
-#            label       => 'Count login as step?',
-#        },
-#        loginTitle => {
-#            fieldType   => 'text',
-#            label       => 'Login title',
-#        },
-#        countConfirmationAsStep => {
-#            fieldType   => 'yesNo',
-#            label       => 'Count confirmation as step?',
-#        },
-#        confirmationTitle => {
-#            fieldType   => 'text',
-#            -label      => 'Confirmation title',
-#        },
-#        registrationManagersGroupId => {
-#            fieldType   => 'group',
-#            label       => 'Group to manage this registration',
-#        },
-#        notificationGroupId => {
-#            fieldType   => 'group',
-#            label       => 'Group to notify when pending accounts are created.',
-#        },
-#        styleTemplateId => {
-#            fieldType   => 'template',
-#            label       => 'Style',
-#            namespace   => 'style',
-#        },
-#        stepTemplateId  => {
-#            fieldType   => 'template', 
-#            label       => 'Step Template',
-#            namespace   => 'Registration/Step',
-#        },
-#        confirmationTemplateId  => {
-#            fieldType   => 'template',
-#            label       => 'Confirmation Template',
-#            namespace   => 'Registration/Confirm',
-#        },
-#        registrationCompleteTemplateId => {
-#            fieldType   => 'template',
-#            label       => 'Registration Complete Message',
-#            namespace   => 'Registration/CompleteMessage',
-#        },
-#        noValidUserTemplateId   => {
-#            fieldType   => 'template',
-#            label       => 'No valid user template',
-#            namespace   => 'Registration/NoValidUser',
-#        },
-#        setupCompleteMailSubject => {
-#            fieldType   => 'text',
-#            tab         => 'display',
-#            label       => 'Setup complete notification email subject',
-#        },
-#        setupCompleteMailTemplateId => {
-#            fieldType   => 'template',
-#            namespace   => 'Registration/CompleteMail',
-#            tab         => 'display',
-#            label       => 'Registration complete notification email template',
-#        },
-#        siteApprovalMailSubject => {
-#            fieldType   => 'text',
-#            tab         => 'display',
-#            label       => 'Site approval nofication mail subject',
-#        },
-#        siteApprovalMailTemplateId => {
-#            fieldType   => 'template',
-#            namespace   => 'Registration/ApprovalMail',
-#            tab         => 'display',
-#            label       => 'Site approval nofication mail template',
-#        },
-#        newAccountWorkflowId => {
-#            fieldType           => 'workflow',
-#            type                => 'WebGUI::User',
-#            none                => 1,
-#            tab                 => 'security',
-#            label               => 'Run workflow on account creation',
-#        },
-#        removeAccountWorkflowId => {
-#            fieldType           => 'workflow',
-#            type                => 'WebGUI::User',
-#            includeRealtime     => 1,
-#            none                => 1,
-#            tab                 => 'security',
-#            label               => 'Run workflow on account removal',
-#         },
-#    );
-#
-#    push  @{ $definition }, {
-#        properties      => \%fields,
-#        tableName       => 'Registration',
-#    };
-#
-#    return $definition;
-#};
-
+#tmp remove later when factoring out registrationId
 sub registrationId {
     return shift->getId;
 }
-
-#-------------------------------------------------------------------
-sub _buildObj {
-    my $class           = shift;
-    my $session         = shift;
-    my $registrationId  = shift;
-    my $options         = shift || { };
-    my $userId          = shift || $session->user->userId,
-    my $self            = { };
-
-    # TODO: Check whether userId exists.
-    $userId = 1 if $userId eq 'new';
-    my $user = WebGUI::User->new( $session, $userId );
-
-    # --- Setup InsideOut object --------------------------------
-    bless       $self, $class;
-    register    $self;
-
-    my $id                      = id $self;
-#    $session            { $id } = $session;
-#    $options            { $id } = $options;
-    $user               { $id } = $user;
-
-    return $self;
-}
-
-##-------------------------------------------------------------------
-#sub create {
-#    my $class   = shift;
-#    my $session = shift;
-#    my $id      = $session->id->generate;
-#
-#    $session->db->write('insert into Registration set registrationId=?', [
-#        $id,
-#    ] );
-#
-#    return $class->new( $session, $id );
-#}
 
 #-------------------------------------------------------------------
 sub delete {
@@ -302,20 +145,13 @@ sub delete {
 
     # Clean up RegistrationStep
     $_->delete for @{ $self->getSteps || [] };
-#    $db->write( 'delete from RegistrationStep where registrationId=?', [
-#        $self->registrationId,
-#    ]);
 
     # Clean up Registration_status
     $db->write( 'delete from Registration_status where registrationId=?', [
         $self->registrationId,
     ]);
 
-#    # Clean up Registration
-#    $db->write( 'delete from Registration where registrationId=?', [
-#        $self->registrationId,
-#    ]);
-
+    # Remove url trigger
     my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
     my $urlTriggers     = decode_json( $urlTriggersJSON );
     delete $urlTriggers->{ $self->get('url') };
@@ -349,24 +185,6 @@ sub getCurrentStep {
     # All steps are complete, return undef.
     return undef;
 }
-
-##-------------------------------------------------------------------
-#sub get {
-#    my $self    = shift;
-#    my $key     = shift;
-#
-#    if ( $key ) {
-#        if ( exists $self->options->{ $key } ) {
-#            return $self->options->{ $key };
-#        }
-#        else {
-#            #### TODO: throw exception.
-#            die "Unknown key in Registration->get [$key]";
-#        }
-#    }
-#
-#    return { %{ $self->options } };
-#}
 
 #-------------------------------------------------------------------
 sub getEditForm {
@@ -536,89 +354,10 @@ sub new {
     return $self;
 }
 
-##-------------------------------------------------------------------
-#sub new {
-#    my $class           = shift;
-#    my $session         = shift;
-#    my $registrationId  = shift || die "No regid";
-#    my $userId          = shift || $session->user->userId;
-#
-#    my $options = $session->db->quickHashRef( 'select * from Registration where registrationId=?', [
-#        $registrationId,
-#    ]);
-#
-#    my $self = $class->_buildObj( $session, $registrationId, $options, $userId );
-#    return $self;
-#}
-
-##-------------------------------------------------------------------
-#sub processPropertiesFromFormPost {
-#    my $self    = shift;
-#    my $session = $self->session;
-#
-#    my $formParam   = $session->form->paramsHashRef;
-#    my $data        = { };
-#
-#    foreach my $definition ( @{ $self->definition( $session ) } ) {
-#        foreach my $key ( keys %{ $definition->{ properties } } ) {
-#            if ( exists $formParam->{ $key } ) {
-#                $data->{ $key } = $session->form->process(
-#                    $key,
-#                    $definition->{ properties }->{ $key }->{ fieldType      },
-#                    $definition->{ properties }->{ $key }->{ defaultValue   },
-#                );
-#            }
-#        }
-#    }
-#
-#    #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
-#
-#    $self->update( $data );
-#
-#    # Fetch the urlTriggers setting
-#    my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
-#    my $urlTriggers     = {};
-#
-#    # Check whether or not the setting already exists
-#    if ( $urlTriggersJSON ) {
-#        # If so, decode the JSON string
-#        $urlTriggers    = decode_json( $urlTriggersJSON );
-#    }
-#    else {
-#        # If not, create the setting
-#        $self->session->setting->add( 'registrationUrlTriggers', '{}' );
-#    }
-#
-#    # Remove the current url from the url trigger setting
-#    delete $urlTriggers->{ $self->get('url') };
-#
-#    # And add the new url to the setting
-#    $urlTriggers->{ $data->{ url } }  = $self->registrationId;
-#    $self->session->setting->set( 'registrationUrlTriggers', encode_json( $urlTriggers ) );
-#}
 #-------------------------------------------------------------------
 sub updateFromFormPost {
     my $self    = shift;
     my $session = $self->session;
-
-#    my $formParam   = $session->form->paramsHashRef;
-#    my $data        = { };
-#
-#    foreach my $definition ( @{ $self->definition( $session ) } ) {
-#        foreach my $key ( keys %{ $definition->{ properties } } ) {
-#            if ( exists $formParam->{ $key } ) {
-#                $data->{ $key } = $session->form->process(
-#                    $key,
-#                    $definition->{ properties }->{ $key }->{ fieldType      },
-#                    $definition->{ properties }->{ $key }->{ defaultValue   },
-#                );
-#            }
-#        }
-#    }
-#
-#    #### TODO: Als de url verandert de oude uit de urltrigger setting halen.
-#
-#    $self->update( $data );
 
     $self->SUPER::updateFromFormPost;
 
@@ -685,34 +424,6 @@ sub setRegistrationStatus {
         $self->user->userId,
     ]);
 }
-
-##-------------------------------------------------------------------
-#sub update {
-#    my $self    = shift;
-#    my $options = shift;
-#    my $session = shift;
-#    my $update  = {};
-#
-#    foreach my $definition ( @{ $self->definition( $session ) } ) {
-#        foreach my $key ( keys %{ $definition->{ properties } } ) {
-#            next unless exists $options->{ $key };
-#
-#            push @{ $update->{ $definition->{tableName} }->{ columns } }, $key;
-#            push @{ $update->{ $definition->{tableName} }->{ data    } }, $options->{ $key };
-#        }
-#    }
-#    
-#    foreach my $table ( keys %{ $update } ) {
-#        my $updateString = join ', ', map { "$_=?" } @{ $update->{ $table }->{ columns } };
-#
-#        $self->session->db->write("update $table set $updateString where registrationId=?", [
-#            @{ $update->{ $table }->{ data } },
-#            $self->registrationId,
-#        ] );
-#
-#        #### TODO: Update state in object.
-#    }
-#}
 
 #-------------------------------------------------------------------
 sub www_changeStep {
