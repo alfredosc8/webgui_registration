@@ -69,6 +69,7 @@ sub crud_definition {
     return $definition;
 }
 
+#-------------------------------------------------------------------
 sub exports {
     my $self    = shift;
     my $exports = $self->SUPER::exports;
@@ -82,6 +83,7 @@ sub exports {
     return $exports;
 }
 
+#-------------------------------------------------------------------
 sub hasUserInteraction {
     return 0;
 }

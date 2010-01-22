@@ -16,13 +16,6 @@ sub crud_definition {
     };
 
     return $definition;
-#    push @{ $definition }, {
-#        name        => 'StepOne',
-#        properties  => \%fields,
-#        namespace   => 'WebGUI::Registration::Step::StepOne',
-#    };
-#
-#    return $class->SUPER::definition( $session, $definition );
 }
 
 
