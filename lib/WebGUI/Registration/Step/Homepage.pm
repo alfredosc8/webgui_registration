@@ -52,13 +52,16 @@ sub crud_definition {
 
 #-------------------------------------------------------------------
 sub exports {
-    return [
-        {
-            name    => 'deployedPageRoot',
-            type    => 'assetId',
-            label   => 'Root of deployed pages',
-        },
-    ];
+    my $self    = shift;
+    my $exports = $self->SUPER::exports;
+
+    push @{ $exports }, {
+        name    => 'deployedPageRoot',
+        type    => 'assetId',
+        label   => 'Root of deployed pages',
+    };
+
+    return $exports;
 }
 
 #-------------------------------------------------------------------

@@ -70,13 +70,16 @@ sub crud_definition {
 }
 
 sub exports {
-    return [
-        {
-            name    => 'userGroup',
-            type    => 'groupId',
-            label   => 'Created user group',
-        },
-    ];
+    my $self    = shift;
+    my $exports = $self->SUPER::exports;
+
+    push @{ $exports }, {
+        name    => 'userGroup',
+        type    => 'groupId',
+        label   => 'Created user group',
+    };
+
+    return $exports;
 }
 
 sub hasUserInteraction {

@@ -184,17 +184,23 @@ sub delete {
 }
 
 #-------------------------------------------------------------------
-sub exportedVariables {
-    my $self    = shift;
-    my @exports;
-
-    foreach ( @{ $self->definition( $self->session ) }  ) {
-        my $stepExports = $_->{ exports } || [];
-        push @exports, @{ $stepExports };
-    }
-
-    return \@exports;
+sub exports {
+    return [];
 }
+
+#-------------------------------------------------------------------
+#sub exportedVariables {
+#    my $self    = shift;
+#    my @exports;
+#
+#   foreach ( @{ $self->definition( $self->session ) }  ) {
+#
+#        my $stepExports = $_->{ exports };
+#        push @exports, @{ $stepExports };
+#    }
+#
+#    return \@exports;
+#}
 
 ##-------------------------------------------------------------------
 #sub get {
@@ -295,10 +301,10 @@ sub getExportVariablesSelectBox {
         # Stop at this step, since we cannot get data from the future.
         last if ($step->stepId eq $self->stepId);
 
-        # Fetch the relevant varaiables from the step.
+        # Fetch the relevant variables from the step.
         my @stepVariables =  
             grep    { $_->{ type } eq $type }
-                    @{ $step->exportedVariables }
+                    @{ $step->exports}
             ;
     
         # And add to the select box options
