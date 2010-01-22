@@ -560,7 +560,6 @@ sub www_editStepSave {
     my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
 
     $step->updateFromFormPost;
-#    $step->processPropertiesFromFormPost;
 
     return www_listSteps( $session, $step->registration->registrationId );
 }
@@ -659,34 +658,14 @@ sub www_moveStepDown {
     my $stepId  = $session->form->process( 'stepId' );
 
     return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
-    my $thisStep        = $session->db->quickHashRef('select * from RegistrationStep where stepId=?', [
-        $stepId,
-    ]);
-
-    my $previousStep    = $session->db->quickHashRef(
-        'select * from RegistrationStep where registrationId=? and stepOrder > ? order by stepOrder asc limit 1', [
-            $thisStep->{ registrationId },
-            $thisStep->{ stepOrder      },
-        ]
-    );
-
-    # Last step already
-    return www_listSteps( $session ) unless exists $previousStep->{ stepId };
     
-    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
-        $previousStep->{ stepOrder },
-        $thisStep->{ stepId },
-    ]);
-    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
-        $thisStep->{ stepOrder },
-        $previousStep->{ stepId },
-    ]);
+    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+    return "Cannaot instanciate step $stepId" unless $step;
+
+    $step->demote;
 
     return www_listSteps( $session );
 }
-
-
 
 #-------------------------------------------------------------------
 sub www_moveStepUp {
@@ -694,29 +673,11 @@ sub www_moveStepUp {
     my $stepId  = $session->form->process( 'stepId' );
 
     return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    
+    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+    return "Cannaot instanciate step $stepId" unless $step;
 
-    my $thisStep        = $session->db->quickHashRef('select * from RegistrationStep where stepId=?', [
-        $stepId,
-    ]);
-
-    my $previousStep    = $session->db->quickHashRef(
-        'select * from RegistrationStep where registrationId=? and stepOrder < ? order by stepOrder desc limit 1', [
-            $thisStep->{ registrationId },
-            $thisStep->{ stepOrder      },
-        ]
-    );
-   
-    # First step already
-    return www_listSteps( $session ) unless exists $previousStep->{ stepId };
-
-    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
-        $previousStep->{ stepOrder },
-        $thisStep->{ stepId },
-    ]);
-    $session->db->write('update RegistrationStep set stepOrder=? where stepId=?', [
-        $thisStep->{ stepOrder },
-        $previousStep->{ stepId },
-    ]);
+    $step->promote;
 
     return www_listSteps( $session );
 }
