@@ -26,6 +26,8 @@ addUrlTriggerSetting( $session );
 installRegistrationStepTables( $session );
 addRegistrationContentHandler( $session );
 addRegistrationProgressMacro( $session );
+addRegistrationSteps( $session );
+
 
 finish( $session );
 
@@ -99,6 +101,24 @@ sub addRegistrationProgressMacro {
     print "Adding RegistrationProgress Macro..";
     $session->config->set('macros', { %{$session->config->get('macros')}, RegistrationProgress => 'RegistrationProgress' } );
     print "Done\n";
+}
+
+sub addRegistrationSteps {
+    my $session = shift;
+
+    print "Adding Registartion Steps to config...";
+    $session->config->addToArray( 'registrationSteps', [
+        "WebGUI::Registration::Step::StepOne",
+        "WebGUI::Registration::Step::StepTwo",
+        "WebGUI::Registration::Step::ProfileData",
+        "WebGUI::Registration::Step::AddUserToGroups",
+        "WebGUI::Registration::Step::Homepage",
+        "WebGUI::Registration::Step::Message",
+        "WebGUI::Registration::Step::UserGroup",
+        "WebGUI::Registration::Step::AddPosts"
+    ] );
+    print "Done\n";
+        
 }
 
 #----------------------------------------------------------------------------
