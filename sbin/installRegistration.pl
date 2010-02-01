@@ -24,6 +24,8 @@ my $session = start( $webguiRoot, $configFile );
 installRegistrationTables( $session );
 addUrlTriggerSetting( $session );
 installRegistrationStepTables( $session );
+addRegistrationContentHandler( $session );
+addRegistrationProgressMacro( $session );
 
 finish( $session );
 
@@ -73,6 +75,29 @@ EO_STATUS
     ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 EO_ACCT_DATA
 
+    print "Done\n";
+}
+
+sub addRegistrationContentHandler {
+    my $session = shift;
+
+    print "Adding Registration Content Handler..";
+    my @handlers = @{ $session->config->get('contentHandlers') };
+    use List::MoreUtils qw(insert_after_string);
+    if ( !grep { $_ eq 'WebGUI::Content::Registration' } @handlers ) {
+        insert_after_string 'WebGUI::Content::Shop', 'WebGUI::Content::Registration',
+          @handlers;
+        $session->config->set( 'contentHandlers', \@handlers );
+    }
+    
+    print "Done\n";
+}
+
+sub addRegistrationProgressMacro {
+    my $session = shift;
+
+    print "Adding RegistrationProgress Macro..";
+    $session->config->set('macros', { %{$session->config->get('macros')}, RegistrationProgress => 'RegistrationProgress' } );
     print "Done\n";
 }
 
