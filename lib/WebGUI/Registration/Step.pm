@@ -114,7 +114,8 @@ sub getEditForm {
     my $self    = shift;
     my $session = $self->session;
 
-    my $f = WebGUI::HTMLForm->new( $session );
+    my $tabform = WebGUI::TabForm->new( $session );
+    my $f = $tabform->addTab( 'properties', 'Properties' );
     $f->hidden(
         name   => 'registration',
         value  => 'admin',
@@ -142,7 +143,7 @@ sub getEditForm {
         );
     };
     
-    return $f;
+    return $tabform;
 }
 
 #-------------------------------------------------------------------

@@ -53,73 +53,69 @@ sub crud_definition {
 #-------------------------------------------------------------------
 sub getEditForm {
     my $self    = shift;
-    my $f       = $self->SUPER::getEditForm();
- 
+    my $session = $self->session;
+    my $tabform = $self->SUPER::getEditForm();
+
     # Fetch and deserialize configuration data
     my $profileOverrides    = $self->get('profileOverrides');
     my $profileSteps        = $self->get('profileSteps');
 
-    my ($availableCategories, $categoryMap);
-    tie %$availableCategories, 'Tie::IxHash';
-    $availableCategories->{''}  = 'None';
+    my @categories = @{ WebGUI::ProfileCategory->getCategories( $session ) };
 
-    # Overrides form
-    $f->fieldSetStart( 'Profile overrides' );
+    tie my %categories, 'Tie::IxHash', (
+        ''  => 'None',
+        map {( $_->getId => $_->getLabel )} @categories,
+    );
 
-    foreach my $category (@{ WebGUI::ProfileCategory->getCategories($self->session) }) {
-        $availableCategories->{$category->getId} = $category->getLabel;
-        
-        # Add profile override controls for this category and its fields
+    # Add profile step fields
+    my $f = $tabform->addTab( 'steps', 'Profile steps' );
+    for my $i (1 .. 10) {
+        my $profileStepForm =
+              WebGUI::Form::selectBox( $session, { 
+                name    => "profileStep$i", 
+                options => \%categories, 
+                value   => $profileSteps->{ "profileStep$i" } || "",
+              } )
+            . WebGUI::Form::textarea( $session, {
+                name    => "profileStepComment$i",
+                value   => $profileSteps->{ "profileStepComment$i" },
+              } )
+        ;
+
         $f->readOnly(
-            -value      => '<b>'.$category->getLabel.'</b>',
+            label   => "Profile step $i",
+            value   => $profileStepForm,
         );
+    }
 
+    foreach my $category ( @categories ) {
+        my $f = $tabform->addTab( $category->getId, "Cat. ".$category->getLabel );
+        
         # Process each field within this category
-        foreach my $field (@{ $category->getFields }) {
+        foreach my $field ( @{ $category->getFields } ) {
             # Create override form for this field
-            my $fieldForm = WebGUI::HTMLForm->new($self->session);
+            my $fieldForm = WebGUI::HTMLForm->new( $session );
             $fieldForm->checkbox(
-                -name       => 'override_'.$field->getId.'_required',
-                -label      => 'Required',
-                -value      => 1,
-                -checked    => $profileOverrides->{ $field->getId }->{ required },
+                name        => 'override_'.$field->getId.'_required',
+                label       => 'Required',
+                value       => 1,
+                checked     => $profileOverrides->{ $field->getId }->{ required },
             );
             $fieldForm->textarea(
-                -name       => 'override_'.$field->getId.'_comment',
-                -label      => 'Comment',
-                -value      => $profileOverrides->{ $field->getId }->{ comment },
+                name        => 'override_'.$field->getId.'_comment',
+                label       => 'Comment',
+                value       => $profileOverrides->{ $field->getId }->{ comment },
             );
         
             # Add override form to the tab
             $f->readOnly(
-                -label      => $field->getLabel,
-                -value      => '<table style="width: 100%;"><tbody>'.$fieldForm->printRowsOnly.'</tbody></table>',
+                label       => $field->getLabel,
+                value       => '<table style="width: 100%;"><tbody>'.$fieldForm->printRowsOnly.'</tbody></table>',
             );
         }
     }
-    $f->fieldSetEnd;
 
-    # Add profile step fields
-    $f->fieldSetStart( 'Profile steps' );
-    for my $i (1 .. 10) {
-        my $profileStepForm .= WebGUI::Form::selectBox($self->session,
-            -name       => "profileStep$i",
-            -options    => $availableCategories,
-            -value      => $profileSteps->{ "profileStep$i" } || "",
-        );  
-        $profileStepForm .= WebGUI::Form::textarea($self->session,
-            -name       => "profileStepComment$i",
-            -value      => $profileSteps->{ "profileStepComment$i" },
-        );
-
-        $f->readOnly(
-            -label      => "Profile step $i",
-            -value      => $profileStepForm,
-        );
-    }
-    $f->fieldSetEnd;
-
-    return $f; 
+    return $tabform; 
 }
 
 #-------------------------------------------------------------------

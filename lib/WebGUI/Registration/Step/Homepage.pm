@@ -69,8 +69,8 @@ sub getEditForm {
     my $self    = shift;
     my $session = $self->session;
 
-    my $f = $self->SUPER::getEditForm;
-    $f->readOnly(
+    my $tabform = $self->SUPER::getEditForm;
+    $tabform->getTab('properties')->readOnly(
         -label  => 'Edit group',
         -value  => 
             WebGUI::Form::group( $session, { 
@@ -80,7 +80,7 @@ sub getEditForm {
             . $self->getExportVariablesSelectBox( 'editGroupId_export', 'groupId' ),
     );
 
-    return $f;
+    return $tabform;
 }
 
 #-------------------------------------------------------------------

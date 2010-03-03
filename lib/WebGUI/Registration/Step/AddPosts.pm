@@ -138,13 +138,13 @@ sub crud_definition {
 sub getEditForm {
     my $self = shift;
 
-    my $f   = $self->SUPER::getEditForm;
-    $f->readOnly(
+    my $tabform = $self->SUPER::getEditForm;
+    $tabform->getTab('properties')->readOnly(
         -label  => 'Search for CS below',
         -value  => $self->getExportVariablesSelectBox( 'csContainerRoot', 'assetId' ),
     );
 
-    return $f;
+    return $tabform;
 }
 
 #-------------------------------------------------------------------
