@@ -68,6 +68,11 @@ sub crud_definition {
         label       => 'Step Template',
         namespace   => 'Registration/Step',
     };
+    $definition->{ properties }->{ showConfirmationScreen           } = {
+        fieldType   => 'yesNo',
+        label       => 'Show confirmation screen?',
+        defaultValue=> 1,
+    },
     $definition->{ properties }->{ confirmationTemplateId           } = {
         fieldType   => 'template',
         label       => 'Confirmation Template',
@@ -453,6 +458,9 @@ sub www_confirmRegistrationData {
 
     # If not all steps are completed yet, go to the step form
     return $self->www_viewStep unless $self->registrationStepsComplete;
+
+    # Complete the registration if no confirmation is used.
+    return $self->www_completeRegistration unless $self->get( 'showConfirmationScreen' );
 
     my $steps           = $self->getSteps;
     my @categoryLoop    = ();
