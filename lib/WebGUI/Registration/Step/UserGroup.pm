@@ -10,7 +10,7 @@ use base qw{ WebGUI::Registration::Step };
 sub apply {
     my $self    = shift;
     my $session = $self->session;
-    my $user    = $self->registration->user;
+    my $user    = $self->registration->instance->user;
 
     # Create group for user
     my $userGroup = WebGUI::Group->new($session, 'new');
@@ -111,7 +111,7 @@ sub onDeleteAccount {
     my @deleteGroups;
 
     # Fetch usergroup(s) to delete
-    my $groups = $self->registration->user->getGroups;
+    my $groups = $self->registration->instance->user->getGroups;
     foreach my $groupId ( @{ $groups } ) {
         my $group = WebGUI::Group->new( $session, $groupId );
         if ($group && scalar(@{ $group->getUsers }) <= 1) {

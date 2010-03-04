@@ -2,6 +2,7 @@ package WebGUI::Registration;
 
 use strict;
 
+use Carp;
 use Class::InsideOut qw{ :std };
 use List::Util qw{ first };
 use List::MoreUtils qw{ any };
@@ -11,7 +12,7 @@ use Data::Dumper;
 use WebGUI::Utility;
 use Tie::IxHash;
 
-public   user               => my %user;
+public   instance           => my %instance;
 
 use base qw{ WebGUI::Crud };
 
@@ -129,40 +130,42 @@ sub crud_definition {
     return $definition;
 };
 
-#tmp remove later when factoring out registrationId
-sub registrationId {
-    return shift->getId;
-}
-
 #-------------------------------------------------------------------
 sub delete {
     my $self    = shift;
-    my $db      = $self->session->db;
+    my $session = $self->session;
 
-    # Clean up RegistrationStep_accountData
-    $db->write(
-          ' delete from RegistrationStep_accountData'
-        . ' where stepId in (select stepId from RegistrationStep where registrationId=?)',
-        [
-            $self->registrationId,
-        ],
-    );
+    # Clean up user instances
+    my $it = WebGUI::Registration::Instance->getAllIterator( $session, { 
+        constraints => [ { 'registrationId=?' => $self->getId } ],
+    });
+    while ( my $instance = $it->() ) {
+        $instance->delete;
+    }
 
     # Clean up RegistrationStep
-    $_->delete for @{ $self->getSteps || [] };
-
-    # Clean up Registration_status
-    $db->write( 'delete from Registration_status where registrationId=?', [
-        $self->registrationId,
-    ]);
+    foreach ( @{ $self->getSteps } ) {
+        $_->delete;
+    }
 
     # Remove url trigger
-    my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers');
-    my $urlTriggers     = decode_json( $urlTriggersJSON );
-    delete $urlTriggers->{ $self->get('url') };
-    $self->session->setting->set('registrationUrlTriggers', encode_json( $urlTriggers ) );
+    $self->deleteUrlTrigger( $self->get('url') );
 
     return $self->SUPER::delete;
+}
+
+#-------------------------------------------------------------------
+sub deleteUrlTrigger {
+    my $self    = shift;
+    my $url     = shift;
+    my $setting = $self->session->setting;
+
+    my $triggers = decode_json( $setting->get('registrationUrlTriggers') || '{}' );
+    delete $triggers->{ $url };
+
+    $setting->set( registrationUrlTriggers => encode_json($triggers) );
+
+    return;
 }
 
 #-------------------------------------------------------------------
@@ -207,11 +210,11 @@ sub getEditForm {
     );
     $f->hidden(
         -name       => 'registrationId',
-        -value      => $self->registrationId,
+        -value      => $self->getId,
     );
     $f->readOnly(
         -label      => 'Registration id',
-        -value      => $self->registrationId,
+        -value      => $self->getId,
     );
 
     tie my %props, 'Tie::IxHash', (
@@ -296,27 +299,11 @@ sub getStepStatus {
 }
 
 #-------------------------------------------------------------------
-sub getRegistrationStatus {
-    my $self    = shift;
-    my $session = $self->session;
-
-    my $status  = $session->db->quickScalar(
-        'select status from Registration_status where registrationId=? and userId=?', 
-        [
-            $self->registrationId,
-            $self->user->userId,
-        ]
-    );
-
-    return $status || 'setup';
-}
-
-#-------------------------------------------------------------------
 sub getStep {
     my $self    = shift;
     my $stepId  = shift;
 
-    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId );
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId, $self->instance->getStepData( $stepId ) );
 
     return $step;
 }
@@ -339,22 +326,38 @@ sub hasValidUser {
 
     # Site status checken
     # ie. not pending or complete
-    return 0 unless $self->getRegistrationStatus eq 'setup';
+    return 0 unless $self->instance->get('status') eq 'incomplete';
 
     # If a user has been loaded into the Registration that is not a visitor, return true.
-    return $self->user && $self->user->userId ne '1';
+####    return $self->user && $self->user->userId ne '1';
+    #### TODO:: Gaat dit goed?
+    return $self->instance->get('userId') ne 1;
 }
 
+#-------------------------------------------------------------------
+sub getInstance {
+    my $self    = shift;
+    my $userId  = shift;
+    my $session = $self->session;
+
+    my $instance = 
+           WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
+        || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
+        ;
+
+    return $instance;
+}
+
+#-------------------------------------------------------------------
 sub new {
-    my ( $class, $session, $id, $userId ) = @_;
+    my $class   = shift;
+    my $session = shift;
+    my $id      = shift;
+    my $userId  = shift || $session->user->userId;
 
-    my $self = $class->SUPER::new( $session, $id );
+    my $self    = $class->SUPER::new( $session, $id );
 
-    #### TODO: This should be thrown out and put in a separate instance data class or whatever...
-    $user{ id $self } = $userId
-                      ? WebGUI::User->new( $session, $userId )
-                      : $session->user
-                      ;
+    $instance{ id $self } = $self->getInstance( $userId );
 
     return $self;
 }
@@ -366,16 +369,28 @@ sub updateFromFormPost {
 
     $self->SUPER::updateFromFormPost;
 
-    # Fetch the urlTriggers setting
-    my $urlTriggersJSON = $self->session->setting->get('registrationUrlTriggers') || '{}';
-    my $urlTriggers    = decode_json( $urlTriggersJSON );
+    my $currentUrl  = $self->get('url');
+    my $newUrl      = $session->form->process( 'url' );
 
-    # Remove the current url from the url trigger setting
-    delete $urlTriggers->{ $self->get('url') };
+    $self->deleteUrlTrigger( $currentUrl );
+    $self->addUrlTrigger( $newUrl );
 
-    # And add the new url to the setting
-    $urlTriggers->{ $session->form->process( 'url' ) }  = $self->registrationId;
-    $self->session->setting->set( 'registrationUrlTriggers', encode_json( $urlTriggers ) );
+    return;
+    
+}
+
+sub addUrlTrigger {
+    my $self    = shift;
+    my $url     = shift || croak 'No url passed';
+    my $setting = $self->session->setting;
+
+    #### TODO: Checken dat bestaande urls niet worden overschreven.
+    my $triggers         = decode_json( $setting->get('registrationUrlTriggers') || '{}' );
+    $triggers->{ $url }  = $self->getId;
+
+    $setting->set( 'registrationUrlTriggers', encode_json( $triggers ) );
+
+    return;
 }
 
 #-------------------------------------------------------------------
@@ -392,7 +407,7 @@ sub processStyle {
 sub registrationComplete {
     my $self = shift;
 
-    return $self->getRegistrationStatus ne 'setup';
+    return $self->instance->get('status') ne 'incomplete';
 }
 
 #-------------------------------------------------------------------
@@ -406,28 +421,6 @@ sub registrationStepsComplete {
 
     # If it is defined, not all steps are not complete yet.
     return 0;
-}
-
-#-------------------------------------------------------------------
-sub setRegistrationStatus {
-    my $self    = shift;
-    my $status  = shift;
-    my $session = $self->session;
-    
-    # Check whether a valid status is passed
-    #### TODO: throw exception;
-    die "wrong status [$status]" unless any { $status eq $_ } qw{ setup pending approved };
-
-    # Write the status to the db
-    $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
-        $self->registrationId,
-        $self->user->userId,
-    ]);
-    $session->db->write('insert into Registration_status (status, registrationId, userId) values (?,?,?)', [
-        $status,
-        $self->registrationId,
-        $self->user->userId,
-    ]);
 }
 
 #-------------------------------------------------------------------
@@ -472,7 +465,7 @@ sub www_confirmRegistrationData {
     my $var = {
         category_loop   => \@categoryLoop,
         proceed_url     =>
-            $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->registrationId),
+            $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->getId),
     };
 
     my $template = WebGUI::Asset::Template->new( $session, $self->get('confirmationTemplateId') );
@@ -483,6 +476,7 @@ sub www_confirmRegistrationData {
 sub www_completeRegistration {
     my $self    = shift;
     my $session = $self->session;
+    my $userId  = $self->instance->user->userId;
 
     # If the registration process has been completed display a message stating that.
     return $self->www_registrationComplete if $self->registrationComplete;
@@ -493,12 +487,13 @@ sub www_completeRegistration {
     # If not all steps are completed yet, go to the step form
     return $self->www_viewStep unless $self->registrationStepsComplete;
 
+
     # Send email to user 
     my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
     my $mailBody        = $mailTemplate->process( {} );
     my $mail            = WebGUI::Mail::Send->create( $self->session, {
-        toUser      => $self->user->userId,
-        subject     => $self->get('setupCompleteMailSubject'),
+        toUser  => $userId,
+        subject => $self->get('setupCompleteMailSubject'),
     });
     $mail->addText($mailBody);
     $mail->queue;
@@ -509,17 +504,20 @@ sub www_completeRegistration {
             toGroup     => $self->get('notificationGroupId'),
             subject     => 'Een nieuwe accountaanvraag is ingediend',
         });
+
+        #### TODO: Gehardcode tekst.
         $mail->addText(
             'Een account staat klaar om gecontroleerd te worden op: '
             . $self->session->url->getSiteURL . $self->session->url->gateway(
                 '',
-                'registration=admin;func=editRegistrationInstanceData;userId='.$self->user->userId.';registrationId='.$self->registrationId
+                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->getId
             )
         );
         $mail->queue;
     }
 
-    $self->setRegistrationStatus( 'pending' );
+    #### $self->setRegistrationStatus( 'pending' );
+    $self->instance->update({ status => 'pending' });
 
     my $var = {};
     my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
@@ -558,11 +556,14 @@ sub www_noValidUser {
     my $self    = shift;
     my $session = $self->session;
     
-    if ($self->hasValidUser || $self->user->userId eq '1') {
+####    if ($self->hasValidUser || $self->user->userId eq '1') {
+#### TODO: Gaat dit goed?
+    if ($self->hasValidUser || $self->session->user->isVisitor) {
         # Set site status flag to setup
-        $self->setRegistrationStatus('setup');
+        $self->instance->update({ status => 'incomplete' });
     }
     else {
+        #### TODO: Dit niet hardcoden.
         return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
     }
 
@@ -609,7 +610,7 @@ sub www_viewStep {
     my $output;
 
     # Set site status
-    $self->setRegistrationStatus( 'setup' );
+    $self->instance->update({ status => 'incomplete' });
 
     # Get current step
     my $currentStep = $self->getCurrentStep;
@@ -621,6 +622,7 @@ sub www_viewStep {
         # Completed last step succesfully.
 
         #### TODO: Dubbelchecken of alle stappen zijn gecomplete.
+        ####       Of toch niet? Immers wordt dit ook al gedaan in confirmRegistrationData.
         $output = $self->www_confirmRegistrationData;
     }
 
@@ -639,10 +641,11 @@ sub www_viewStepSave {
     # No more steps?
     return $self->www_viewStep unless $currentStep;
 
-    $currentStep->processStepFormData;
+    my $errors = $currentStep->processStepFormData;
+    $self->instance->setStepData( $currentStep->getId, $currentStep->data );
 
     # Return the step screen if an error occurred during processing.
-    return $currentStep->www_view if (@{ $currentStep->error });
+    return $currentStep->www_view if ( @{ $currentStep->error } );
 
     # Clear step id override flag.
     $session->scratch->delete( 'overrideStepId' );
@@ -655,15 +658,15 @@ sub www_viewStepSave {
 #-------------------------------------------------------------------   
 sub www_view {
     my $self = shift;
-    return $self->www_setupSite unless ($self->canEdit || $self->canInstallUserPage);
 
-    return $self->SUPER::www_view;
+    return $self->www_viewStep; 
 }
 
 #-------------------------------------------------------------------
 sub www_registrationComplete {
     my $self = shift;
 
+    #### TODO: gehardcode
     return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
 }
 

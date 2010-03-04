@@ -160,7 +160,7 @@ sub installUserPage {
     my $self        = shift;
     my $parameters  = shift;
 
-    my $user        = $self->registration->user;
+    my $user        = $self->registration->instance->user;
     my $session     = $self->session;
     my $i18n        = WebGUI::International->new($session, 'MijnArts');
 
@@ -257,7 +257,7 @@ sub onDeleteAccount {
     my $output;
 
     # Delete user homepage
-    my $userPageRootUrl = $self->registration->user->profileField( $self->get('urlStorageField' ) );
+    my $userPageRootUrl = $self->registration->instance->user->profileField( $self->get('urlStorageField' ) );
     my $userPageRoot;
 
     if ( $userPageRootUrl ) {

@@ -251,8 +251,8 @@ sub www_deleteAccountConfirm {
     # Delete account status
     if ( $session->form->process( 'deleteAccountStatus' ) ) {
         $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
-            $registration->registrationId,
-            $registration->user->userId,
+            $registration->getId,
+            $registration->instance->user->userId,
         ]);
         push @actions, 'Removing account status';
     }
@@ -293,7 +293,7 @@ sub www_deleteStep {
     my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
     $step->delete;
 
-    return www_listSteps( $session, $step->registration->registrationId );
+    return www_listSteps( $session, $step->registration->getId );
 }
 
 
@@ -545,7 +545,7 @@ sub www_editStep {
 
     my $stepId  = $session->form->process('stepId');
     my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-    $session->stow->set('admin_registrationId', $step->registration->registrationId);
+    $session->stow->set('admin_registrationId', $step->registration->getId );
 
     return adminConsole( $session, $step->www_edit, 'Edit step for ' . $step->registration->get('title') );
 }
@@ -561,7 +561,7 @@ sub www_editStepSave {
 
     $step->updateFromFormPost;
 
-    return www_listSteps( $session, $step->registration->registrationId );
+    return www_listSteps( $session, $step->registration->getId );
 }
 
 #-------------------------------------------------------------------

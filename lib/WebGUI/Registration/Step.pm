@@ -10,6 +10,7 @@ use Carp;
 use Data::Dumper;
 
 private  registration   => my %registration;
+public   data           => my %data;
 readonly error          => my %error;
 
 use base qw{ WebGUI::Crud::Dynamic };
@@ -24,7 +25,7 @@ sub changeStepDataUrl {
     my $self    = shift;
 
     return $self->session->url->page(
-        'registration=register;func=changeStep;stepId='.$self->getId.';registrationId='.$self->registration->registrationId
+        'registration=register;func=changeStep;stepId=' . $self->getId . ';registrationId=' . $self->registration->getId
     );
 }
 
@@ -34,9 +35,10 @@ sub crud_definition {
     my $session     = shift;
     my $definition  = $class->SUPER::crud_definition( $session );
 
-    $definition->{ tableName        } = 'RegistrationStep';
-    $definition->{ tableKey         } = 'stepId';
-    $definition->{ registrationId   } = 'registrationId';
+    $definition->{ tableName    } = 'RegistrationStep';
+    $definition->{ tableKey     } = 'stepId';
+    $definition->{ sequenceKey  } = 'registrationId';
+####    $definition->{ registrationId   } = 'registrationId';
 
     $definition->{ properties }->{ registrationId } = {
         fieldType       => 'guid',
@@ -82,17 +84,19 @@ sub exports {
 #-------------------------------------------------------------------
 sub getConfigurationData {
     my $self    = shift;
-    my $userId  = shift || $self->registration->user->userId;
+#    my $userId  = shift || $self->registration->user->userId;
 
-    my $configurationData = $self->session->db->quickScalar(
-        'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
-        [
-            $userId,
-            $self->getId,
-        ]
-    );
- 
-    return $configurationData ? decode_json($configurationData) : {};
+    return $self->data;
+
+#    my $configurationData = $self->session->db->quickScalar(
+#        'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
+#        [
+#            $userId,
+#            $self->getId,
+#        ]
+#    );
+# 
+#    return $configurationData ? decode_json($configurationData) : {};
 }
 
 #-------------------------------------------------------------------
@@ -204,7 +208,7 @@ sub getStepForm {
     );
     $f->hidden(
         -name   => 'registrationId',
-        -value  => $self->registration->registrationId,
+        -value  => $self->registration->getId,
     );
 
     return $f;
@@ -232,7 +236,7 @@ sub getStepNumber {
 #-------------------------------------------------------------------
 sub getViewVars {
     my $self            = shift;
-    my $registrationId  = $self->registration->registrationId;
+    my $registrationId  = $self->registration->getId;
     
     my $var;
     $var->{ category_name   } = $self->get('title');
@@ -275,6 +279,7 @@ sub new {
     my $class   = shift;
     my $session = shift;
     my $stepId  = shift;
+    my $data    = shift || {};
 
     my $self    = $class->SUPER::new( $session, $stepId );
     register $self;
@@ -282,6 +287,7 @@ sub new {
     my $id                  = id $self;
     $registration   { $id } = undef;
     $error          { $id } = [];
+    $data           { $id } = $data;
 
     return $self;
 }
@@ -321,7 +327,7 @@ sub onDeleteAccount {
 
 #-------------------------------------------------------------------
 sub processStepFormData { 
-
+    return {};
 }
 
 #-------------------------------------------------------------------
@@ -370,22 +376,27 @@ sub setConfigurationData {
     my $self    = shift;
     my $key     = shift;
     my $value   = shift;
-    my $userId  = shift || $self->registration->user->userId;
+#    my $userId  = shift || $self->registration->user->userId;
 
-    my $configurationData = $self->getConfigurationData;
-    $configurationData->{ $key } = $value;
+    $self->data( { %{$self->data}, $key => $value } );
 
-    my $json = encode_json($configurationData);
-   
-    $self->session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
-        $self->getId,
-        $userId,
-    ]);
-    $self->session->db->write('insert into RegistrationStep_accountData set configurationData=?, stepId=?, userId=?', [
-        $json,
-        $self->getId,
-        $userId,
-    ]);
+    return;
+
+#
+#    my $configurationData = $self->getConfigurationData;
+#    $configurationData->{ $key } = $value;
+#
+#    my $json = encode_json($configurationData);
+#   
+#    $self->session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
+#        $self->getId,
+#        $userId,
+#    ]);
+#    $self->session->db->write('insert into RegistrationStep_accountData set configurationData=?, stepId=?, userId=?', [
+#        $json,
+#        $self->getId,
+#        $userId,
+#    ]);
 }
 
 #-------------------------------------------------------------------

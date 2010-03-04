@@ -11,7 +11,7 @@ use base qw{ WebGUI::Registration::Step };
 sub apply {
     my $self    = shift;
     my $session = $self->session;
-    my $user    = $self->registration->user;
+    my $user    = $self->registration->instance->user;
 
     # Get entered profile data
     my $profileSteps = $self->get('profileSteps');
@@ -152,7 +152,7 @@ sub getSubstepStatus {
 sub getSummaryTemplateVars {
     my $self            = shift;
     my $session         = $self->session;
-    my $user            = $self->registration->user;
+    my $user            = $self->registration->instance->user;
 
     my @categoryLoop    = ();
 
@@ -216,7 +216,7 @@ Returns an array ref containing error messages, if errors occurred.
 sub processCategoryDataFromFormPost {
     my $self        = shift;
     my $categoryId  = shift;
-    my $user        = shift || $self->registration->user;
+    my $user        = shift || $self->registration->instance->user;
     my $session     = $self->session;
 
     #### TODO: Throw exception on categoryId.
@@ -361,9 +361,9 @@ sub processStepApprovalData {
 #-------------------------------------------------------------------
 sub getViewVars {
     my $self    = shift;
-    my $user    = shift || $self->registration->user;
+    my $user    = shift || $self->registration->instance->user;
 
-    my $registrationId      = $self->registration->registrationId;
+    my $registrationId      = $self->registration->getId;
     my $profileOverrides    = $self->get('profileOverrides');
     my $profileSteps        = $self->get('profileSteps');
 
