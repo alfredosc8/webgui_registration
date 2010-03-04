@@ -104,6 +104,7 @@ sub newByDynamicClass {
     my $class   = shift;
     my $session = shift;
     my $id      = shift;
+    my @params  = @_;
 
     # Figure out namespace of step
     my $table   = $class->crud_getTableName( $session );
@@ -118,6 +119,7 @@ sub newByDynamicClass {
     my $crud        = WebGUI::Pluggable::instanciate( $namespace, 'new', [
         $session,
         $id,
+        @params,
     ] );
 
     return $crud;
