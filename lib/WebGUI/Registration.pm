@@ -367,16 +367,19 @@ sub updateFromFormPost {
     my $self    = shift;
     my $session = $self->session;
 
+    # First grab current url...
+    my $currentUrl  = $self->get('url');
+
+    # ...then update the object...
     $self->SUPER::updateFromFormPost;
 
-    my $currentUrl  = $self->get('url');
-    my $newUrl      = $session->form->process( 'url' );
+    # ...and finally fetch the new url
+    my $newUrl      = $self->get('url');
 
     $self->deleteUrlTrigger( $currentUrl );
     $self->addUrlTrigger( $newUrl );
 
     return;
-    
 }
 
 sub addUrlTrigger {
