@@ -167,7 +167,6 @@ sub updateFromFormPost {
         $data->{ $fieldName } = $value;
     }
 
-$session->log->warn( Dumper $data );
     return $self->update( $data );
 }
 
