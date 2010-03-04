@@ -25,7 +25,7 @@ sub changeStepDataUrl {
     my $self    = shift;
 
     return $self->session->url->page(
-        'registration=register;func=changeStep;stepId='.$self->getId.';registrationId='.$self->registration->registrationId
+        'registration=register;func=changeStep;stepId=' . $self->getId . ';registrationId=' . $self->registration->getId
     );
 }
 
@@ -208,7 +208,7 @@ sub getStepForm {
     );
     $f->hidden(
         -name   => 'registrationId',
-        -value  => $self->registration->registrationId,
+        -value  => $self->registration->getId,
     );
 
     return $f;
@@ -236,7 +236,7 @@ sub getStepNumber {
 #-------------------------------------------------------------------
 sub getViewVars {
     my $self            = shift;
-    my $registrationId  = $self->registration->registrationId;
+    my $registrationId  = $self->registration->getId;
     
     my $var;
     $var->{ category_name   } = $self->get('title');

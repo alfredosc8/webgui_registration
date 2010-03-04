@@ -130,11 +130,6 @@ sub crud_definition {
     return $definition;
 };
 
-#tmp remove later when factoring out registrationId
-sub registrationId {
-    return shift->getId;
-}
-
 #-------------------------------------------------------------------
 sub delete {
     my $self    = shift;
@@ -215,11 +210,11 @@ sub getEditForm {
     );
     $f->hidden(
         -name       => 'registrationId',
-        -value      => $self->registrationId,
+        -value      => $self->getId,
     );
     $f->readOnly(
         -label      => 'Registration id',
-        -value      => $self->registrationId,
+        -value      => $self->getId,
     );
 
     tie my %props, 'Tie::IxHash', (
@@ -470,7 +465,7 @@ sub www_confirmRegistrationData {
     my $var = {
         category_loop   => \@categoryLoop,
         proceed_url     =>
-            $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->registrationId),
+            $session->url->page('registration=register;func=completeRegistration;registrationId='.$self->getId),
     };
 
     my $template = WebGUI::Asset::Template->new( $session, $self->get('confirmationTemplateId') );
@@ -515,7 +510,7 @@ sub www_completeRegistration {
             'Een account staat klaar om gecontroleerd te worden op: '
             . $self->session->url->getSiteURL . $self->session->url->gateway(
                 '',
-                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->registrationId
+                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->getId
             )
         );
         $mail->queue;

@@ -218,7 +218,7 @@ sub isComplete {
 #-------------------------------------------------------------------
 sub getViewVars {
     my $self            = shift;
-    my $registrationId  = $self->registration->registrationId;
+    my $registrationId  = $self->registration->getId;
 
     my $var         = $self->SUPER::getViewVars;
     my $sourceCSs   = $self->getSourceCSs;

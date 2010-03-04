@@ -363,7 +363,7 @@ sub getViewVars {
     my $self    = shift;
     my $user    = shift || $self->registration->instance->user;
 
-    my $registrationId      = $self->registration->registrationId;
+    my $registrationId      = $self->registration->getId;
     my $profileOverrides    = $self->get('profileOverrides');
     my $profileSteps        = $self->get('profileSteps');
 
