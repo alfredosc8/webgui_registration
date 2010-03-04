@@ -316,7 +316,7 @@ sub getStep {
     my $self    = shift;
     my $stepId  = shift;
 
-    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId );
+    my $step    = WebGUI::Registration::Step->newByDynamicClass( $self->session, $stepId, $self->instance->getStepData( $stepId ) );
 
     return $step;
 }
@@ -340,10 +340,12 @@ sub hasValidUser {
     # Site status checken
     # ie. not pending or complete
 ####    return 0 unless $self->getRegistrationStatus eq 'setup';
-    return 0 unless $self->instance->get('status') eq 'setup';
+    return 0 unless $self->instance->get('status') eq 'incomplete';
 
     # If a user has been loaded into the Registration that is not a visitor, return true.
-    return $self->user && $self->user->userId ne '1';
+####    return $self->user && $self->user->userId ne '1';
+    #### TODO:: Gaat dit goed?
+    return $self->instance->get('userId') ne 1;
 }
 
 #-------------------------------------------------------------------
@@ -581,12 +583,15 @@ sub www_noValidUser {
     my $self    = shift;
     my $session = $self->session;
     
-    if ($self->hasValidUser || $self->user->userId eq '1') {
+####    if ($self->hasValidUser || $self->user->userId eq '1') {
+#### TODO: Gaat dit goed?
+    if ($self->hasValidUser || $self->session->user->isVisitor) {
         # Set site status flag to setup
         $self->instance->update({ status => 'incomplete' });
 ####        $self->setRegistrationStatus('setup');
     }
     else {
+        #### TODO: Dit niet hardcoden.
         return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
     }
 
@@ -665,7 +670,8 @@ sub www_viewStepSave {
     # No more steps?
     return $self->www_viewStep unless $currentStep;
 
-    $self->instance->setStepData( $currentStep, $currentStep->processStepFormData );
+    my $errors = $currentStep->processStepFormData;
+    $self->instance->setStepData( $currentStep->getId, $currentStep->data );
 
     # Return the step screen if an error occurred during processing.
     return $currentStep->www_view if ( @{ $currentStep->error } );
