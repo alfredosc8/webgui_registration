@@ -10,7 +10,7 @@ use base qw{ WebGUI::Registration::Step };
 sub apply {
     my $self    = shift;
     my $session = $self->session;
-    my $user    = $self->registration->user;
+    my $user    = $self->registration->instance->user;
 
     my @groupIds = split /\n/, $self->get('addUserToGroups');
 
