@@ -12,7 +12,9 @@ use strict;
 use Pod::Usage;
 use Getopt::Long;
 use WebGUI::Session;
+use WebGUI::Registration;
 use WebGUI::Registration::Step;
+use WebGUI::Registration::Instance;
 
 GetOptions(
     'configFile=s'  => \$configFile,
@@ -21,15 +23,26 @@ GetOptions(
 
 my $session = start( $webguiRoot, $configFile );
 
-installRegistrationTables( $session );
-addUrlTriggerSetting( $session );
-installRegistrationStepTables( $session );
-addRegistrationContentHandler( $session );
-addRegistrationProgressMacro( $session );
-addRegistrationSteps( $session );
+installRegistrationInstanceTables( $session );
+#installRegistrationTables( $session );
+#addUrlTriggerSetting( $session );
+#installRegistrationStepTables( $session );
+#addRegistrationContentHandler( $session );
+#addRegistrationProgressMacro( $session );
+#addRegistrationSteps( $session );
 
 
 finish( $session );
+
+#----------------------------------------------------------------------------
+sub installRegistrationInstanceTables {
+    my $session = shift || die 'no session';
+    print "Installing registration instance table...";
+
+    WebGUI::Registration::Instance->crud_createTable( $session );
+
+    print "Done\n";
+}
 
 #----------------------------------------------------------------------------
 sub installRegistrationStepTables {

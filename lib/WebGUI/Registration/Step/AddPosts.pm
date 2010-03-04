@@ -258,8 +258,12 @@ sub updateFromFormPost {
 sub processStepFormData {
     my $self = shift;
 
+    my $data = $self->SUPER::processStepFormData;
     # Store seletected categories
-    $self->setConfigurationData('selectedCSs', [ $self->session->form->process('addCS') ] );
+#    $self->setConfigurationData('selectedCSs', [ $self->session->form->process('addCS') ] );
+    $data->{ selectedCSs } = [ $self->session->form->process('addCS') ];
+
+    return $data;
 }
 
 1;

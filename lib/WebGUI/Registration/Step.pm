@@ -34,9 +34,10 @@ sub crud_definition {
     my $session     = shift;
     my $definition  = $class->SUPER::crud_definition( $session );
 
-    $definition->{ tableName        } = 'RegistrationStep';
-    $definition->{ tableKey         } = 'stepId';
-    $definition->{ registrationId   } = 'registrationId';
+    $definition->{ tableName    } = 'RegistrationStep';
+    $definition->{ tableKey     } = 'stepId';
+    $definition->{ sequenceKey  } = 'registrationId';
+####    $definition->{ registrationId   } = 'registrationId';
 
     $definition->{ properties }->{ registrationId } = {
         fieldType       => 'guid',
@@ -321,7 +322,7 @@ sub onDeleteAccount {
 
 #-------------------------------------------------------------------
 sub processStepFormData { 
-
+    return {};
 }
 
 #-------------------------------------------------------------------

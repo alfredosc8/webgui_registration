@@ -11,7 +11,7 @@ use Data::Dumper;
 use WebGUI::Utility;
 use Tie::IxHash;
 
-public   user               => my %user;
+public   instance           => my %instance;
 
 use base qw{ WebGUI::Crud };
 
@@ -296,20 +296,20 @@ sub getStepStatus {
 }
 
 #-------------------------------------------------------------------
-sub getRegistrationStatus {
-    my $self    = shift;
-    my $session = $self->session;
-
-    my $status  = $session->db->quickScalar(
-        'select status from Registration_status where registrationId=? and userId=?', 
-        [
-            $self->registrationId,
-            $self->user->userId,
-        ]
-    );
-
-    return $status || 'setup';
-}
+#sub getRegistrationStatus {
+#    my $self    = shift;
+#    my $session = $self->session;
+#
+#    my $status  = $session->db->quickScalar(
+#        'select status from Registration_status where registrationId=? and userId=?', 
+#        [
+#            $self->registrationId,
+#            $self->user->userId,
+#        ]
+#    );
+#
+#    return $status || 'setup';
+#}
 
 #-------------------------------------------------------------------
 sub getStep {
@@ -339,23 +339,44 @@ sub hasValidUser {
 
     # Site status checken
     # ie. not pending or complete
-    return 0 unless $self->getRegistrationStatus eq 'setup';
+####    return 0 unless $self->getRegistrationStatus eq 'setup';
+    return 0 unless $self->instance->get('status') eq 'setup';
 
     # If a user has been loaded into the Registration that is not a visitor, return true.
     return $self->user && $self->user->userId ne '1';
 }
 
+#-------------------------------------------------------------------
+sub getInstance {
+    my $self    = shift;
+    my $userId  = shift;
+    my $session = $self->session;
+
+    my $instance = 
+           WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
+        || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
+        ;
+
+    return $instance;
+}
+
+#-------------------------------------------------------------------
 sub new {
-    my ( $class, $session, $id, $userId ) = @_;
+    my $class   = shift;
+    my $session = shift;
+    my $id      = shift;
+    my $userId  = shift || $session->user->userId;
 
-    my $self = $class->SUPER::new( $session, $id );
+    my $self    = $class->SUPER::new( $session, $id );
 
-    #### TODO: This should be thrown out and put in a separate instance data class or whatever...
-    $user{ id $self } = $userId
-                      ? WebGUI::User->new( $session, $userId )
-                      : $session->user
-                      ;
+    $instance{ id $self } = $self->getInstance( $userId );
 
+#    #### TODO: This should be thrown out and put in a separate instance data class or whatever...
+#    $user{ id $self } = $userId
+#                      ? WebGUI::User->new( $session, $userId )
+#                      : $session->user
+#                      ;
+#
     return $self;
 }
 
@@ -392,7 +413,8 @@ sub processStyle {
 sub registrationComplete {
     my $self = shift;
 
-    return $self->getRegistrationStatus ne 'setup';
+    return 0 unless $self->instance->get('status') eq 'incomplete';
+####    return $self->getRegistrationStatus ne 'setup';
 }
 
 #-------------------------------------------------------------------
@@ -409,26 +431,26 @@ sub registrationStepsComplete {
 }
 
 #-------------------------------------------------------------------
-sub setRegistrationStatus {
-    my $self    = shift;
-    my $status  = shift;
-    my $session = $self->session;
-    
-    # Check whether a valid status is passed
-    #### TODO: throw exception;
-    die "wrong status [$status]" unless any { $status eq $_ } qw{ setup pending approved };
-
-    # Write the status to the db
-    $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
-        $self->registrationId,
-        $self->user->userId,
-    ]);
-    $session->db->write('insert into Registration_status (status, registrationId, userId) values (?,?,?)', [
-        $status,
-        $self->registrationId,
-        $self->user->userId,
-    ]);
-}
+#sub setRegistrationStatus {
+#    my $self    = shift;
+#    my $status  = shift;
+#    my $session = $self->session;
+#    
+#    # Check whether a valid status is passed
+#    #### TODO: throw exception;
+#    die "wrong status [$status]" unless any { $status eq $_ } qw{ setup pending approved };
+#
+#    # Write the status to the db
+#    $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
+#        $self->registrationId,
+#        $self->user->userId,
+#    ]);
+#    $session->db->write('insert into Registration_status (status, registrationId, userId) values (?,?,?)', [
+#        $status,
+#        $self->registrationId,
+#        $self->user->userId,
+#    ]);
+#}
 
 #-------------------------------------------------------------------
 sub www_changeStep {
@@ -519,7 +541,8 @@ sub www_completeRegistration {
         $mail->queue;
     }
 
-    $self->setRegistrationStatus( 'pending' );
+    #### $self->setRegistrationStatus( 'pending' );
+    $self->instance->update({ status => 'pending' });
 
     my $var = {};
     my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
@@ -560,7 +583,8 @@ sub www_noValidUser {
     
     if ($self->hasValidUser || $self->user->userId eq '1') {
         # Set site status flag to setup
-        $self->setRegistrationStatus('setup');
+        $self->instance->update({ status => 'incomplete' });
+####        $self->setRegistrationStatus('setup');
     }
     else {
         return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
@@ -609,7 +633,8 @@ sub www_viewStep {
     my $output;
 
     # Set site status
-    $self->setRegistrationStatus( 'setup' );
+#    $self->setRegistrationStatus( 'setup' );
+    $self->instance->update({ status => 'incomplete' });
 
     # Get current step
     my $currentStep = $self->getCurrentStep;
@@ -621,6 +646,7 @@ sub www_viewStep {
         # Completed last step succesfully.
 
         #### TODO: Dubbelchecken of alle stappen zijn gecomplete.
+        ####       Of toch niet? Immers wordt dit ook al gedaan in confirmRegistrationData.
         $output = $self->www_confirmRegistrationData;
     }
 
@@ -639,10 +665,10 @@ sub www_viewStepSave {
     # No more steps?
     return $self->www_viewStep unless $currentStep;
 
-    $currentStep->processStepFormData;
+    $self->instance->setStepData( $currentStep, $currentStep->processStepFormData );
 
     # Return the step screen if an error occurred during processing.
-    return $currentStep->www_view if (@{ $currentStep->error });
+    return $currentStep->www_view if ( @{ $currentStep->error } );
 
     # Clear step id override flag.
     $session->scratch->delete( 'overrideStepId' );
