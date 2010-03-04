@@ -24,12 +24,12 @@ GetOptions(
 my $session = start( $webguiRoot, $configFile );
 
 installRegistrationInstanceTables( $session );
-#installRegistrationTables( $session );
-#addUrlTriggerSetting( $session );
-#installRegistrationStepTables( $session );
-#addRegistrationContentHandler( $session );
-#addRegistrationProgressMacro( $session );
-#addRegistrationSteps( $session );
+installRegistrationTables( $session );
+addUrlTriggerSetting( $session );
+installRegistrationStepTables( $session );
+addRegistrationContentHandler( $session );
+addRegistrationProgressMacro( $session );
+addRegistrationSteps( $session );
 
 
 finish( $session );
