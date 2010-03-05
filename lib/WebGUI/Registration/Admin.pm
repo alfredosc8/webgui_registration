@@ -310,56 +310,6 @@ sub www_listPendingRegistrations {
 }
 
 #-------------------------------------------------------------------
-sub www_listSteps {
-    my $session         = shift;
-    my $registrationId  = shift || $session->form->process('registrationId');
-
-    $session->stow->set('admin_registrationId', $registrationId);
-
-    return $session->privilege->insufficient unless canManage( $session, $registrationId );
-    return www_managerScreen( $session ) unless $session->user->isInGroup( 3 );
-
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-    my $steps           = $registration->getSteps;
-
-    # Registration properties 
-    my $output = 
-        '<fieldset><legend>Registration properties</legend>' . $registration->getEditForm->print . '</fieldset>'; 
-
-    my $icon = $session->icon;
-
-    $output .= '<fieldset><legend>Registration steps</legend><ul>';
-    foreach my $step ( @{ $steps } ) {
-        #my $baseParams = 'registration=admin;stepId=' . $step->getId . ';registrationId=' . $registrationId;
-        my $baseParams = 'registration=step;stepId=' . $step->getId;
-        
-        $output .= 
-            '<li>'
-            . $icon->delete(    "$baseParams;func=delete"   )
-            . $icon->moveUp(    "$baseParams;func=promote"   )
-            . $icon->moveDown(  "$baseParams;func=demote" )
-            . $icon->edit(      "$baseParams;func=edit"     )
-            . $step->get( 'title' )
-            .'</li>';       
-    }
-
-    my $availableSteps  = { map {$_ => $_} @{ $session->config->get('registrationSteps')  || [] } };
-    my $addForm         = 
-          WebGUI::Form::formHeader( $session )
-        . WebGUI::Form::hidden(     $session, { -name => 'registration',    -value => 'admin'               } )
-        . WebGUI::Form::hidden(     $session, { -name => 'func',            -value => 'addStep'             } )
-        . WebGUI::Form::hidden(     $session, { -name => 'registrationId',  -value => $registrationId       } )
-        . WebGUI::Form::selectBox(  $session, { -name => 'namespace',       -options => $availableSteps     } )
-        . WebGUI::Form::submit(     $session, {                             -value => 'Add step'            } )
-        . WebGUI::Form::formFooter( $session );
-
-
-    $output .= "<li>$addForm</li></ul></fieldset>";
-
-    return adminConsole( $session, $output, 'Edit registration steps for ' . $registration->get('title') );
-}
-
-#-------------------------------------------------------------------
 sub www_managerScreen {
     my $session = shift;
    

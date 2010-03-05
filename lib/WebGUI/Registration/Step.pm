@@ -85,19 +85,8 @@ sub exports {
 #-------------------------------------------------------------------
 sub getConfigurationData {
     my $self    = shift;
-#    my $userId  = shift || $self->registration->user->userId;
 
     return $self->data;
-
-#    my $configurationData = $self->session->db->quickScalar(
-#        'select configurationData from RegistrationStep_accountData where userId=? and stepId=?',
-#        [
-#            $userId,
-#            $self->getId,
-#        ]
-#    );
-# 
-#    return $configurationData ? decode_json($configurationData) : {};
 }
 
 #-------------------------------------------------------------------
@@ -377,27 +366,10 @@ sub setConfigurationData {
     my $self    = shift;
     my $key     = shift;
     my $value   = shift;
-#    my $userId  = shift || $self->registration->user->userId;
 
     $self->data( { %{$self->data}, $key => $value } );
 
     return;
-
-#
-#    my $configurationData = $self->getConfigurationData;
-#    $configurationData->{ $key } = $value;
-#
-#    my $json = encode_json($configurationData);
-#   
-#    $self->session->db->write('delete from RegistrationStep_accountData where stepId=? and userId=?', [
-#        $self->getId,
-#        $userId,
-#    ]);
-#    $self->session->db->write('insert into RegistrationStep_accountData set configurationData=?, stepId=?, userId=?', [
-#        $json,
-#        $self->getId,
-#        $userId,
-#    ]);
 }
 
 #-------------------------------------------------------------------
@@ -417,7 +389,6 @@ sub www_delete {
     $self->delete;
 
     return $self->registration->www_manageSteps;
-    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
 #-------------------------------------------------------------------
@@ -428,7 +399,6 @@ sub www_demote {
     $self->demote;
 
     return $self->registration->www_manageSteps;
-    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
 #-------------------------------------------------------------------
@@ -440,8 +410,6 @@ sub www_edit {
     $f->submit;
 
     return $self->registration->adminConsole( $f->print, 'Edit step for ' . $self->registration->get('title') );
-    return WebGUI::Registration::Admin::adminConsole( $self->session, $f->print, 'Edit step for ' . $self->registration->get('title') );
-    return $f->print;
 }
 
 #-------------------------------------------------------------------
@@ -452,7 +420,6 @@ sub www_editSave {
     $self->updateFromFormPost;
 
     return $self->registration->www_manageSteps;
-    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
 #-------------------------------------------------------------------
@@ -463,7 +430,6 @@ sub www_promote {
     $self->promote;
 
     return $self->registration->www_manageSteps;
-    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
 #-------------------------------------------------------------------
