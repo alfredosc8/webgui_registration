@@ -53,15 +53,6 @@ sub getRegistrations {
     my $registrationId  = shift;
     my $status          = shift;
 
-    my @userIds = $session->db->buildArray(
-        "select t1.userId from Registration_status as t1, users as t2 "
-        ." where t1.userId=t2.userId and t1.status=? and registrationId=? "
-        ." order by t2.username ", 
-        [
-            $status,
-            $registrationId,
-        ]
-    );
     my $it = WebGUI::Registration::Instance->getAllIterator( $session, {
         constraints => [
             { 'registrationId=? and status=?' => [ $registrationId, $status ] },
@@ -69,9 +60,7 @@ sub getRegistrations {
     } );
     my $output = '<table>';
 
-    #foreach (@userIds) {
     while ( my $instance = $it->() ) {
-#       my $user = WebGUI::User->new($session, $_);
         my $id      = $instance->getId;
         my $user    = $instance->user;
 
@@ -291,20 +280,6 @@ sub www_deleteRegistration {
     return www_view( $session );
 }
 
-#####-------------------------------------------------------------------
-####sub www_deleteStep {
-####    my $session = shift;
-####
-####    return $session->privilege->insufficient unless canManage( $session );
-####
-####    my $stepId  = $session->form->process('stepId');
-####    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-####    $step->delete;
-####
-####    return www_listSteps( $session, $step->registration->getId );
-####}
-
-
 #-------------------------------------------------------------------
 sub www_editRegistration {
     my $session = shift;
@@ -330,247 +305,6 @@ sub www_editRegistrationSave {
 
     return www_view( $session );
 }
-
-##-------------------------------------------------------------------
-#sub www_editRegistrationInstanceData {
-#    my $session = shift;
-#    my $error   = shift || [];
-#    my $userId  = shift || $session->form->process( 'userId' );
-#
-#    return $session->privilege->insufficient unless canManage( $session );
-#
-#    my $registrationId  = $session->form->process( 'registrationId' );
-##    my $userId          = $session->form->process( 'userId'         );
-#
-#    my $registration    = WebGUI::Registration->new( $session, $registrationId, $userId );
-#
-#    return adminConsole( $session, "De gebruiker '". $registration->instance->user->username ."' heeft al een account.", "Approve account" )
-#        if $registration->instance eq 'approved';
-#
-#    my $steps           = $registration->getSteps;
-#    my $user            = WebGUI::User->new( $session, $userId ) unless $userId eq 'new';
-#
-#    my $f = WebGUI::HTMLForm->new( $session );
-#    $f->hidden(
-#        name    => 'registration',
-#        value   => 'admin',
-#    );
-#    $f->hidden(
-#        name    => 'registrationId',
-#        value   => $registrationId,
-#    );
-#    $f->hidden(
-#        name    => 'userId',    
-#        value   => $userId,
-#    );
-#    $f->hidden(
-#        name    => 'func',
-#        value   => 'editRegistrationInstanceDataSave',
-#    );
-#
-#    # User account properties
-#    my $username    = $session->form->process('username');
-#    $username     ||= $registration->user->username unless $userId eq 'new';
-#    my $email       = $session->form->process('email'); 
-#    $email        ||= $registration->user->profileField('email') unless $userId eq 'new';
-#    $f->fieldSetStart( 'Account Data' );
-#    $f->text(
-#        name    => 'username',
-#        label   => 'Username',
-#        value   => $username,
-#    );
-#    $f->email(
-#        name    => 'email',
-#        label   => 'Email',
-#        value   => $email,
-#    );
-#    # Make sure we do not pass 'new' as a userId to WG::Op:Auth->getInstance as this will create a 'zombie' account. 
-#    $f->raw(WebGUI::Operation::Auth::getInstance( $session, 'WebGUI', $userId eq 'new' ? undef : $userId )->editUserForm);
-#    $f->fieldSetEnd;
-#
-#    foreach my $step ( @{ $steps } ) {
-#        foreach my $category ( $step->getSummaryTemplateVars( 1 ) ) {
-#            $f->fieldSetStart( $category->{ category_label } );
-#            foreach my $field ( @{ $category->{ field_loop } } ) {
-#                $f->readOnly(
-#                    label   => $field->{ field_label        },
-#                    value   => $field->{ field_formElement  },
-#                );
-#            }
-#            $f->fieldSetEnd;
-#        }
-#    }
-#
-#    $f->submit;
-#
-#    my $output;
-#    $output .= 'Errors: <ul><li>'. join( '</li><li>', @$error ) . '</li></ul>' if @$error;
-#    $output .= $f->print;
-#
-#    return adminConsole( $session, $output, 'Approve account' );
-#}
-#
-##-------------------------------------------------------------------
-##### TODO: Deze code moet eigenlijk naar WG::Registration
-#sub www_editRegistrationInstanceDataSave {
-#    my $session = shift;
-#
-#    return $session->privilege->insufficient unless canManage( $session );
-#
-#    my @error;
-#
-#    # ========== Process account data =================================
-#    my $username        = $session->form->process( 'username'   );
-#    my $email           = $session->form->process( 'email'      );
-#    my $userId          = $session->form->process( 'userId'     );
-#    my $userByUserId    = WebGUI::User->new(            $session, $userId   ) unless $userId eq 'new';
-#    my $userByUsername  = WebGUI::User->newByUsername(  $session, $username );
-#    my $userByEmail     = WebGUI::User->newByEmail(     $session, $email    );
-#
-#    # Check for valid userId
-#    if ( $userId ne 'new' && !$userByUserId ) {
-#        push @error, "Invalid userId: [$userId]";
-#    }
-#
-#    # Check for duplicate username
-#    if ( $userByUsername && ( $userByUsername->userId ne $userId ) ) {
-#        push @error, 'Username already exists.';
-#    }
-#
-#    # Check for duplicate email
-#    if ( $userByEmail && ( $userByEmail->userId ne $userId ) ) {
-#        push @error, 'Email address is already in use by user: ' . $userByEmail->username;
-#    }
-#
-#    # ========== Return to edit screen with errors if an error occurred.
-#    return www_editRegistrationInstanceData( $session, \@error ) if @error;
-#
-#    # ========== Process user account data =============================
-#    # Instanciate or create user
-#    my $user = WebGUI::User->new( $session, $userId );
-#    $user->username( $username );
-#    $user->profileField( 'email', $email );
-#
-#    # Apply auth plugin stuff
-#    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
-#    $authInstance->editUserFormSave;
-#
-#    $userId = $user->userId;
-#
-#    # ========== Process and error check submitted form data. ==========
-#    my $registrationId  = $session->form->process( 'registrationId' );
-#    my $registration    = WebGUI::Registration->new( $session, $registrationId, $user->userId );
-#    my $steps           = $registration->getSteps;
-#
-#    return adminConsole( $session, "De gebruiker '". $registration->user->username ."' heeft al een account.", "Approve account" )
-#        if $registration->getRegistrationStatus eq 'approved';
-#
-#    foreach my $step ( @{ $steps } ) {
-#        $step->processStepApprovalData;
-#
-#        push @error, @{ $step->error };
-#    }
-#
-#    # ========== Return to edit screen with errors if an error occurred.
-#    return www_editRegistrationInstanceData( $session, \@error, $userId ) if @error;
-#
-#    
-#    # ========== No errors occurred ====================================
-#    # Instanciate or create user
-##    my $user = WebGUI::User->new( $session, $userId );
-##    $user->username( $username );
-##    $user->profileField( 'email', $email );
-##
-##    # Apply auth plugin stuff
-##    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
-##    $authInstance->editUserFormSave;
-#    
-#    # Set the registration object to use the instanciated user
-##    $registration->user( $user );
-#
-#    # Save the current version tag so that we can the user to his current tag after the application process.
-#    my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
-#
-#    # Create a separate tag for the content applied by the registration steps.
-#    my $tempVersionTag      = WebGUI::VersionTag->create($session, {
-#        name    => 'Installation of user pages for '.$registration->user->username,
-#    });
-#    $tempVersionTag->setWorking;
-#    
-#    # Apply the registration steps 
-#    foreach my $step ( @{ $steps } ) {
-#        $step->apply;
-#    }
-#
-#    # Commit the tag if it contains any content, otherwise delete it.
-#    if ( $tempVersionTag->getAssetCount > 0 ) {
-#        $tempVersionTag->commit;
-#    }
-#    else {
-#        $tempVersionTag->rollback;
-#    }
-#
-#    # Return the user to the version tag he was in.
-#    $currentVersionTag->setWorking if (defined $currentVersionTag);
-#    
-#    # Run workflow on account creation.
-#    if ($registration->get('newAccountWorkflowId')) {
-#        WebGUI::Workflow::Instance->create($session, {
-#            workflowId  => $registration->get('newAccountWorkflowId'),
-#            methodName  => "new",
-#            className   => "WebGUI::User",
-#            parameters  => $user->userId,
-#            priority    => 1
-#        });
-#    } 
-#
-#    $registration->setRegistrationStatus( 'approved' );
-#
-#    # Create notification mail tmpl_vars
-#    my $var;
-#    #### TODO: homepageurl niet hardcoden
-#    $var->{ homepage_url        } = $user->profileField( 'homepageUrl' );
-#    $var->{ username            } = $user->username;
-#
-#    # Send notification mail
-#    my $mailTemplate    = WebGUI::Asset::Template->new($session, $registration->get('siteApprovalMailTemplateId'));
-#    my $mailBody        = $mailTemplate->process( $var );
-#    my $mail            = WebGUI::Mail::Send->create($session, {
-#        toUser      => $user->userId,
-#        subject     => $registration->get('siteApprovalMailSubject'),
-#    });
-#    $mail->addText($mailBody);
-#    $mail->queue;
-#
-#    return www_listPendingRegistrations( $session );
-#}
-
-#####-------------------------------------------------------------------
-####sub www_editStep {
-####    my $session = shift;
-####
-####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-####
-####    my $stepId  = $session->form->process('stepId');
-####    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-####    $session->stow->set('admin_registrationId', $step->registration->getId );
-####
-####    return adminConsole( $session, $step->www_edit, 'Edit step for ' . $step->registration->get('title') );
-####}
-####
-#####-------------------------------------------------------------------
-####sub www_editStepSave {
-####    my $session = shift;
-####
-####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-####
-####    my $stepId  = $session->form->process('stepId');
-####    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-####
-####    $step->updateFromFormPost;
-####
-####    return www_listSteps( $session, $step->registration->getId );
-####}
 
 #-------------------------------------------------------------------
 sub www_listApprovedRegistrations {
@@ -660,36 +394,6 @@ sub www_managerScreen {
 
     return adminConsole( $session, $message, 'Accountbeheer' );
 }
-
-#####-------------------------------------------------------------------
-####sub www_moveStepDown {
-####    my $session = shift;
-####    my $stepId  = $session->form->process( 'stepId' );
-####
-####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-####    
-####    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-####    return "Cannaot instanciate step $stepId" unless $step;
-####
-####    $step->demote;
-####
-####    return www_listSteps( $session );
-####}
-####
-#####-------------------------------------------------------------------
-####sub www_moveStepUp {
-####    my $session = shift;
-####    my $stepId  = $session->form->process( 'stepId' );
-####
-####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-####    
-####    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-####    return "Cannaot instanciate step $stepId" unless $step;
-####
-####    $step->promote;
-####
-####    return www_listSteps( $session );
-####}
 
 #-------------------------------------------------------------------
 sub www_view {
