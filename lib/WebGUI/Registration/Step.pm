@@ -4,6 +4,7 @@ use strict;
 use Class::InsideOut qw{ :std };
 use WebGUI::HTMLForm;
 use WebGUI::Registration;
+use WebGUI::Registration::Admin;
 use JSON;
 use Carp;
 
@@ -122,11 +123,11 @@ sub getEditForm {
     my $f = $tabform->addTab( 'properties', 'Properties' );
     $f->hidden(
         name   => 'registration',
-        value  => 'admin',
+        value  => 'step',
     );
     $f->hidden(
         name   => 'func',
-        value  => 'editStepSave',
+        value  => 'editSave',
     );
     $f->hidden(
         name   => 'stepId',
@@ -409,13 +410,55 @@ sub setExportVariable {
 }
 
 #-------------------------------------------------------------------
+sub www_delete {
+    my $self = shift;
+
+#### TODO: privs
+    $self->delete;
+
+    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
+}
+
+#-------------------------------------------------------------------
+sub www_demote {
+    my $self = shift;
+
+#### TODO: privs
+    $self->demote;
+
+    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
+}
+
+#-------------------------------------------------------------------
 sub www_edit {
     my $self = shift;
 
+#### TODO: privs
     my $f = $self->getEditForm;
     $f->submit;
 
+    return WebGUI::Registration::Admin::adminConsole( $self->session, $f->print, 'Edit step for ' . $self->registration->get('title') );
     return $f->print;
+}
+
+#-------------------------------------------------------------------
+sub www_editSave {
+    my $self = shift;
+
+#### TODO: privs
+    $self->updateFromFormPost;
+
+    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
+}
+
+#-------------------------------------------------------------------
+sub www_promote {
+    my $self = shift;
+
+#### TODO: privs
+    $self->promote;
+
+    return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
 #-------------------------------------------------------------------

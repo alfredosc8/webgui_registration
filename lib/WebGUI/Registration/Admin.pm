@@ -2,39 +2,39 @@ package WebGUI::Registration::Admin;
 
 use strict;
 use WebGUI::Registration;
-use WebGUI::Registration::Step;
+####use WebGUI::Registration::Step;
 use WebGUI::AdminConsole;
 
 use Data::Dumper;
 
 #-------------------------------------------------------------------
 sub adminConsole {
-    my $session = shift;
-    my $content = shift;
-    my $title   = shift;
-    my $url     = $session->url;
-    my $ac      = WebGUI::AdminConsole->new( $session );
+my $session = shift;
+my $content = shift;
+my $title   = shift;
+my $url     = $session->url;
+my $ac      = WebGUI::AdminConsole->new( $session );
 
-    my $registrationId  = $session->stow->get('admin_registrationId');
-    my $baseParams      = 'registration=admin;registrationId='.$registrationId;
+my $registrationId  = $session->stow->get('admin_registrationId');
+my $baseParams      = 'registration=admin;registrationId='.$registrationId;
 
-    if ( $session->user->isInGroup( 3 ) ) {
-        $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'             ), 'List registrations'      );
-        $ac->addSubmenuItem( $url->page( 'registration=admin;func=addRegistration'  ), 'Add a new registration'  );
-    }
-    if ( $session->user->isInGroup( 3 ) && $registrationId ) {
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=listSteps"   ), 'List registration steps' );
-    }
+if ( $session->user->isInGroup( 3 ) ) {
+    $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'             ), 'List registrations'      );
+    $ac->addSubmenuItem( $url->page( 'registration=admin;func=addRegistration'  ), 'Add a new registration'  );
+}
+if ( $session->user->isInGroup( 3 ) && $registrationId ) {
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=listSteps"   ), 'List registration steps' );
+}
 
-    if ( $registrationId && canManage( $session, $registrationId ) ) {
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
-    }
+if ( $registrationId && canManage( $session, $registrationId ) ) {
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
+    $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
+}
 
-    $ac->setIcon('/extras/spacer.gif');
+$ac->setIcon('/extras/spacer.gif');
 
-    return $ac->render( $content, $title );
+return $ac->render( $content, $title );
 }
 
 #-------------------------------------------------------------------
@@ -291,18 +291,18 @@ sub www_deleteRegistration {
     return www_view( $session );
 }
 
-#-------------------------------------------------------------------
-sub www_deleteStep {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless canManage( $session );
-
-    my $stepId  = $session->form->process('stepId');
-    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-    $step->delete;
-
-    return www_listSteps( $session, $step->registration->getId );
-}
+#####-------------------------------------------------------------------
+####sub www_deleteStep {
+####    my $session = shift;
+####
+####    return $session->privilege->insufficient unless canManage( $session );
+####
+####    my $stepId  = $session->form->process('stepId');
+####    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+####    $step->delete;
+####
+####    return www_listSteps( $session, $step->registration->getId );
+####}
 
 
 #-------------------------------------------------------------------
@@ -545,32 +545,32 @@ sub www_editRegistrationSave {
 #    return www_listPendingRegistrations( $session );
 #}
 
-#-------------------------------------------------------------------
-sub www_editStep {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
-    my $stepId  = $session->form->process('stepId');
-    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-    $session->stow->set('admin_registrationId', $step->registration->getId );
-
-    return adminConsole( $session, $step->www_edit, 'Edit step for ' . $step->registration->get('title') );
-}
-
-#-------------------------------------------------------------------
-sub www_editStepSave {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
-    my $stepId  = $session->form->process('stepId');
-    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-
-    $step->updateFromFormPost;
-
-    return www_listSteps( $session, $step->registration->getId );
-}
+#####-------------------------------------------------------------------
+####sub www_editStep {
+####    my $session = shift;
+####
+####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+####
+####    my $stepId  = $session->form->process('stepId');
+####    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+####    $session->stow->set('admin_registrationId', $step->registration->getId );
+####
+####    return adminConsole( $session, $step->www_edit, 'Edit step for ' . $step->registration->get('title') );
+####}
+####
+#####-------------------------------------------------------------------
+####sub www_editStepSave {
+####    my $session = shift;
+####
+####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+####
+####    my $stepId  = $session->form->process('stepId');
+####    my $step    = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+####
+####    $step->updateFromFormPost;
+####
+####    return www_listSteps( $session, $step->registration->getId );
+####}
 
 #-------------------------------------------------------------------
 sub www_listApprovedRegistrations {
@@ -621,14 +621,15 @@ sub www_listSteps {
 
     $output .= '<fieldset><legend>Registration steps</legend><ul>';
     foreach my $step ( @{ $steps } ) {
-        my $baseParams = 'registration=admin;stepId=' . $step->getId . ';registrationId=' . $registrationId;
+        #my $baseParams = 'registration=admin;stepId=' . $step->getId . ';registrationId=' . $registrationId;
+        my $baseParams = 'registration=step;stepId=' . $step->getId;
         
         $output .= 
             '<li>'
-            . $icon->delete(    "$baseParams;func=deleteStep"   )
-            . $icon->moveUp(    "$baseParams;func=moveStepUp"   )
-            . $icon->moveDown(  "$baseParams;func=moveStepDown" )
-            . $icon->edit(      "$baseParams;func=editStep"     )
+            . $icon->delete(    "$baseParams;func=delete"   )
+            . $icon->moveUp(    "$baseParams;func=promote"   )
+            . $icon->moveDown(  "$baseParams;func=demote" )
+            . $icon->edit(      "$baseParams;func=edit"     )
             . $step->get( 'title' )
             .'</li>';       
     }
@@ -660,35 +661,35 @@ sub www_managerScreen {
     return adminConsole( $session, $message, 'Accountbeheer' );
 }
 
-#-------------------------------------------------------------------
-sub www_moveStepDown {
-    my $session = shift;
-    my $stepId  = $session->form->process( 'stepId' );
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-    
-    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-    return "Cannaot instanciate step $stepId" unless $step;
-
-    $step->demote;
-
-    return www_listSteps( $session );
-}
-
-#-------------------------------------------------------------------
-sub www_moveStepUp {
-    my $session = shift;
-    my $stepId  = $session->form->process( 'stepId' );
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-    
-    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
-    return "Cannaot instanciate step $stepId" unless $step;
-
-    $step->promote;
-
-    return www_listSteps( $session );
-}
+#####-------------------------------------------------------------------
+####sub www_moveStepDown {
+####    my $session = shift;
+####    my $stepId  = $session->form->process( 'stepId' );
+####
+####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+####    
+####    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+####    return "Cannaot instanciate step $stepId" unless $step;
+####
+####    $step->demote;
+####
+####    return www_listSteps( $session );
+####}
+####
+#####-------------------------------------------------------------------
+####sub www_moveStepUp {
+####    my $session = shift;
+####    my $stepId  = $session->form->process( 'stepId' );
+####
+####    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+####    
+####    my $step = WebGUI::Registration::Step->newByDynamicClass( $session, $stepId );
+####    return "Cannaot instanciate step $stepId" unless $step;
+####
+####    $step->promote;
+####
+####    return www_listSteps( $session );
+####}
 
 #-------------------------------------------------------------------
 sub www_view {
