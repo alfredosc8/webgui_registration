@@ -416,12 +416,14 @@ sub www_view {
             undef,
             'Weet u zeker dat u deze registratie wil verwijderen?',
         );
-        my $editButton      = $session->icon->edit(
-#### TODO: Manage scherm
-            "registration=registration;func=edit;registrationId=$id",
-        );
+#        my $editButton      = $session->icon->edit(
+##### TODO: Manage scherm
+#            "registration=registration;func=edit;registrationId=$id",
+#        );
 
-        $output .= "<li>$deleteButton $editButton" .  $registration->get('title') . '</li>';
+        $output .= "<li>$deleteButton <a href=\"" 
+            . $session->url->page("registration=registration;func=manage;registrationId=$id") 
+            . '">' . $registration->get('title') . '</a></li>';
     }
 
     $output .= '</ul>';

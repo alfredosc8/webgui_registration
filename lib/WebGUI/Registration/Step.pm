@@ -416,6 +416,7 @@ sub www_delete {
 #### TODO: privs
     $self->delete;
 
+    return $self->registration->www_manageSteps;
     return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
@@ -426,6 +427,7 @@ sub www_demote {
 #### TODO: privs
     $self->demote;
 
+    return $self->registration->www_manageSteps;
     return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
@@ -437,6 +439,7 @@ sub www_edit {
     my $f = $self->getEditForm;
     $f->submit;
 
+    return $self->registration->adminConsole( $f->print, 'Edit step for ' . $self->registration->get('title') );
     return WebGUI::Registration::Admin::adminConsole( $self->session, $f->print, 'Edit step for ' . $self->registration->get('title') );
     return $f->print;
 }
@@ -448,6 +451,7 @@ sub www_editSave {
 #### TODO: privs
     $self->updateFromFormPost;
 
+    return $self->registration->www_manageSteps;
     return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 
@@ -458,6 +462,7 @@ sub www_promote {
 #### TODO: privs
     $self->promote;
 
+    return $self->registration->www_manageSteps;
     return WebGUI::Registration::Admin::www_listSteps( $self->session, $self->get('registrationId') );
 }
 

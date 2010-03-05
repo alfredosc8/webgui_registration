@@ -18,6 +18,44 @@ public   instance           => my %instance;
 use base qw{ WebGUI::Crud };
 
 #-------------------------------------------------------------------
+sub adminConsole {
+    my $self    = shift;
+    my $content = shift;
+    my $title   = shift;
+    my $session = $self->session;
+    my $url     = $session->url;
+    my $ac      = WebGUI::AdminConsole->new( $session );
+
+    my $registrationId  = $self->getId;
+    my $baseParams      = 'registration=registration;registrationId='.$registrationId;
+
+    if ( $session->user->isInGroup( 3 ) ) {
+        $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'             ), 'Manage registrations'       );
+        $ac->addSubmenuItem( $url->page( 'registration=admin;func=addRegistration'  ), 'Add a new registration'     );
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=manage"                  ), 'Manage registration'        );
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=manageSteps"             ), 'Manage registration steps'  );
+    }
+
+    if ( $self->canManage ) {
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
+    }
+
+    $ac->setIcon('/extras/spacer.gif');
+
+    return $ac->render( $content, $title );
+}
+
+#-------------------------------------------------------------------
+sub canManage {
+    my $self = shift;
+    my $user = $self->session->user;
+
+    return $user->isInGroup( $self->get('registrationManagersGroupId') );
+}
+
+#-------------------------------------------------------------------
 sub crud_definition {
     my $class       = shift;
     my $session     = shift;
@@ -236,8 +274,6 @@ sub getEditForm {
         );
     };
 
-    $f->submit;
-
     return $f;
 }
 
@@ -454,7 +490,7 @@ sub www_edit {
     my $f = $self->getEditForm;
     $f->submit;
 
-    return WebGUI::Registration::Admin::adminConsole( $session, $f->print, 'Edit Registration' );
+    return $self->adminConsole( $f->print, 'Edit Registration' );
 }
 
 #-------------------------------------------------------------------
@@ -614,6 +650,56 @@ sub www_listRegistrations {
 }
 
 #-------------------------------------------------------------------
+sub www_manageSteps {
+    my $self    = shift;
+    my $session = $self->session;
+    my $icon    = $self->session->icon;
+
+#### TODO: weg hiermee!
+    $session->stow->set( 'admin_registrationId', $self->getId );
+
+#### TODO: privs
+#    return $session->privilege->insufficient unless canManage( $session, $registrationId );
+#    return www_managerScreen( $session ) unless $session->user->isInGroup( 3 );
+
+    my $steps = $self->getSteps;
+
+    my $output = 'Configured steps:<ul>';
+    foreach my $step ( @{ $steps } ) {
+        my $baseParams = 'registration=step;stepId=' . $step->getId;
+        
+        $output .= 
+            '<li>'
+            . $icon->delete(    "$baseParams;func=delete"   )
+            . $icon->moveUp(    "$baseParams;func=promote"   )
+            . $icon->moveDown(  "$baseParams;func=demote" )
+            . $icon->edit(      "$baseParams;func=edit"     )
+            . $step->get( 'title' )
+            .'</li>';       
+    }
+    $output .= '</ul>';
+
+    tie my %availableSteps, 'Tie::IxHash', (
+        map { $_ => $_ } 
+        sort 
+        @{ $session->config->get('registrationSteps') || [] }
+    );
+    my $addForm         = 
+          WebGUI::Form::formHeader( $session )
+        . WebGUI::Form::hidden(     $session, { name => 'registration',    value => 'registration'        } )
+        . WebGUI::Form::hidden(     $session, { name => 'func',            value => 'addStep'             } )
+        . WebGUI::Form::hidden(     $session, { name => 'registrationId',  value => $self->getId          } )
+        . WebGUI::Form::selectBox(  $session, { name => 'namespace',       options => \%availableSteps    } )
+        . WebGUI::Form::submit(     $session, {                            value => 'Add step'            } )
+        . WebGUI::Form::formFooter( $session );
+
+
+    $output .= "Add a step: $addForm";
+
+    return $self->adminConsole( $output, 'Edit registration steps for ' . $self->get('title') );
+}
+
+#-------------------------------------------------------------------
 sub www_login {
     my $self    = shift;
     my $session = $self->session;
@@ -624,6 +710,13 @@ sub www_login {
     # Cannot use WG::Op::www_auth b/c the user style is hardcoded...
     return $self->processStyle( WebGUI::Auth::WebGUI->new($session)->init );
     return WebGUI::Operation::Auth::www_auth($session, 'init');
+}
+
+#-------------------------------------------------------------------
+sub www_manage {
+    my $self = shift;
+
+    return $self->www_edit;
 }
 
 #-------------------------------------------------------------------
@@ -651,7 +744,7 @@ sub www_noValidUser {
     my $var;
     $var->{ login_button            } =
         WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                     } )
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                    } )
         . WebGUI::Form::submit($session, {                      value => 'Inloggen'                 } )
         . WebGUI::Form::formFooter($session);
     $var->{ login_url               } = $session->url->page('func=login');
