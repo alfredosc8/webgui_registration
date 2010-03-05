@@ -267,44 +267,44 @@ sub www_deleteAccountConfirm {
     return adminConsole( $session, $output, 'Account deleted' );
 }
 
-#-------------------------------------------------------------------
-sub www_deleteRegistration {
-    my $session = shift;
+##-------------------------------------------------------------------
+#sub www_deleteRegistration {
+#    my $session = shift;
+#
+#    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+#
+#    my $registrationId  = $session->form->process('registrationId');
+#    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+#    $registration->delete;
+#
+#    return www_view( $session );
+#}
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+##-------------------------------------------------------------------
+#sub www_editRegistration {
+#    my $session = shift;
+#
+#    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+#
+#    my $registrationId  = $session->form->process('registrationId');
+#    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+#
+#    return adminConsole( $session, $registration->getEditForm->print, 'Edit Registration');
+#}
 
-    my $registrationId  = $session->form->process('registrationId');
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-    $registration->delete;
-
-    return www_view( $session );
-}
-
-#-------------------------------------------------------------------
-sub www_editRegistration {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-
-    my $registrationId  = $session->form->process('registrationId');
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-
-    return adminConsole( $session, $registration->getEditForm->print, 'Edit Registration');
-}
-
-#-------------------------------------------------------------------
-sub www_editRegistrationSave {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-    
-    my $registrationId  = $session->form->process('registrationId');
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-
-    $registration->updateFromFormPost;
-
-    return www_view( $session );
-}
+##-------------------------------------------------------------------
+#sub www_editRegistrationSave {
+#    my $session = shift;
+#
+#    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+#    
+#    my $registrationId  = $session->form->process('registrationId');
+#    my $registration    = WebGUI::Registration->new( $session, $registrationId );
+#
+#    $registration->updateFromFormPost;
+#
+#    return www_view( $session );
+#}
 
 #-------------------------------------------------------------------
 sub www_listApprovedRegistrations {
@@ -412,12 +412,13 @@ sub www_view {
         next unless canManage( $session, $id );
 
         my $deleteButton    = $session->icon->delete(
-            "registration=admin;func=deleteRegistration;registrationId=$id",
+            "registration=registration;func=delete;registrationId=$id",
             undef,
             'Weet u zeker dat u deze registratie wil verwijderen?',
         );
         my $editButton      = $session->icon->edit(
-            "registration=admin;func=listSteps;registrationId=$id",
+#### TODO: Manage scherm
+            "registration=registration;func=edit;registrationId=$id",
         );
 
         $output .= "<li>$deleteButton $editButton" .  $registration->get('title') . '</li>';

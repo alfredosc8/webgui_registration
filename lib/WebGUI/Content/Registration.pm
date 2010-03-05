@@ -12,6 +12,7 @@ sub handler {
     my $output;
 
     my $system = $session->form->process( 'registration' );
+    $system = 'register' if $system eq 'registration';
 
     my $triggerUrls = decode_json( $session->setting->get( 'registrationUrlTriggers' ) || '{}' );
 
@@ -85,6 +86,7 @@ sub www_step {
 
     return $output;
 }
+
 sub www_register {
     my $session = shift;
     my $regId   = shift || $session->form->process('registrationId');

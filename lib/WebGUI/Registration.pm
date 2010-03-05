@@ -11,6 +11,7 @@ use JSON qw{ encode_json decode_json };
 use Data::Dumper;
 use WebGUI::Utility;
 use Tie::IxHash;
+use WebGUI::Registration::Admin;
 
 public   instance           => my %instance;
 
@@ -207,11 +208,11 @@ sub getEditForm {
     my $f = WebGUI::HTMLForm->new( $session );
     $f->hidden(
         -name       => 'registration',
-        -value      => 'admin',
+        -value      => 'registration',
     );
     $f->hidden(
         -name       => 'func',
-        -value      => 'editRegistrationSave',
+        -value      => 'editSave',
     );
     $f->hidden(
         -name       => 'registrationId',
@@ -432,6 +433,43 @@ sub registrationStepsComplete {
 }
 
 #-------------------------------------------------------------------
+sub www_delete {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    $self->delete;
+
+    return $self->www_listRegistrations;
+}
+
+#-------------------------------------------------------------------
+sub www_edit {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $f = $self->getEditForm;
+    $f->submit;
+
+    return WebGUI::Registration::Admin::adminConsole( $session, $f->print, 'Edit Registration' );
+}
+
+#-------------------------------------------------------------------
+sub www_editSave {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    $self->updateFromFormPost;
+
+    return $self->www_listRegistrations;
+}
+
+#-------------------------------------------------------------------
 sub www_changeStep {
     my $self    = shift;
     my $session = $self->session;
@@ -568,6 +606,12 @@ sub www_createAccount {
     return WebGUI::Operation::Auth::www_auth( $session, 'createAccount' );
 }
 
+#-------------------------------------------------------------------
+sub www_listRegistrations {
+    my $self = shift;
+
+    return WebGUI::Registration::Admin::www_view( $self->session );
+}
 
 #-------------------------------------------------------------------
 sub www_login {
