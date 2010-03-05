@@ -111,6 +111,11 @@ sub crud_definition {
         tab         => 'display',
         label       => 'Site approval nofication mail template',
     };
+    $definition->{ properties }->{ autoApprove                      } = {
+        fieldType           => 'yesNo',
+        label               => 'Auto-approval',
+        defaultValue        => 1,
+    };
     $definition->{ properties }->{ newAccountWorkflowId             } = {
         fieldType           => 'workflow',
         type                => 'WebGUI::User',
@@ -315,7 +320,7 @@ sub getSteps {
    
     my $stepIds = WebGUI::Registration::Step->getAllIds( $session, { sequenceKeyValue => $self->getId} );
 
-    my @steps   = map { WebGUI::Registration::Step->newByDynamicClass( $session, $_ ) } @{ $stepIds };
+    my @steps   = map { $self->getStep( $_ ) } @{ $stepIds };
 
     return \@steps;
 }
@@ -475,22 +480,11 @@ sub www_confirmRegistrationData {
     return $self->processStyle( $template->process( $var ) );
 }
 
-#-------------------------------------------------------------------
-sub www_completeRegistration {
+
+sub requestApproval {
     my $self    = shift;
-    my $session = $self->session;
+
     my $userId  = $self->instance->user->userId;
-
-    # If the registration process has been completed display a message stating that.
-    return $self->www_registrationComplete if $self->registrationComplete;
-
-    # Check whether the user is allowed to register.
-    return $self->www_noValidUser unless $self->hasValidUser;
-
-    # If not all steps are completed yet, go to the step form
-    return $self->www_viewStep unless $self->registrationStepsComplete;
-
-
     # Send email to user 
     my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
     my $mailBody        = $mailTemplate->process( {} );
@@ -519,9 +513,43 @@ sub www_completeRegistration {
         $mail->queue;
     }
 
-    #### $self->setRegistrationStatus( 'pending' );
+    return;
+}
+
+
+sub autoApprove {
+    my $self = shift;
+
+    $self->instance->approve;
+
+    return;
+}
+
+#-------------------------------------------------------------------
+sub www_completeRegistration {
+    my $self    = shift;
+    my $session = $self->session;
+    my $userId  = $self->instance->user->userId;
+
+    # If the registration process has been completed display a message stating that.
+    return $self->www_registrationComplete if $self->registrationComplete;
+
+    # Check whether the user is allowed to register.
+    return $self->www_noValidUser unless $self->hasValidUser;
+
+    # If not all steps are completed yet, go to the step form
+    return $self->www_viewStep unless $self->registrationStepsComplete;
+
     $self->instance->update({ status => 'pending' });
 
+#    if ( $self->get('autoApprove') ) {
+#        $self->autoApprove;
+#    }
+#    else {
+        $self->requestApproval;
+#    }
+
+    #### TODO: Ook nog een autoapprove template klussen en die in bovenstaande sub stoppen...
     my $var = {};
     my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
     return $self->processStyle( $template->process($var) )

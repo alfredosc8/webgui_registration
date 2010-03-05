@@ -48,6 +48,25 @@ sub www_admin {
     return $output;
 }
 
+sub www_instance {
+    my $session = shift;
+    my $form    = $session->form;
+    my $output;
+
+    my $method = 'www_' . ( $session->form->process( 'func' ) || 'edit' );
+
+    my $instance = WebGUI::Registration::Instance->new( $session, $form->get('instanceId') );
+
+    if ( $method =~ /^www_[\w_]+$/ && $instance->can( $method ) ) {
+        $output = $instance->$method;
+    }
+    else {
+        $session->errorHandler->warn("Cannot execute method [$method]");
+    }
+
+    return $output;
+}
+
 sub www_register {
     my $session = shift;
     my $regId   = shift || $session->form->process('registrationId');
