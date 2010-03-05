@@ -87,31 +87,6 @@ sub www_addRegistration {
     return adminConsole( $session, $registration->getEditForm->print, 'Add Registration');
 }
 
-#-------------------------------------------------------------------
-sub www_addStep {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless canManage( $session );
-
-    my $registrationId  = $session->form->process('registrationId');
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-
-    my $namespace = $session->form->process( 'namespace' );
-    return "Illegal namespace [$namespace]" unless $namespace =~ /^[\w\d\:]+$/;
-
-    my $step = eval {
-        WebGUI::Pluggable::instanciate( $namespace, 'create', [
-            $session,
-            { registrationId => $registrationId },
-        ] );
-    };
-
-    $session->log->warn( "ERRORT: $@" ) if $@;
-
-    #### TODO: catch exception
-
-    return adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
-}
 
 #-------------------------------------------------------------------
 sub www_createInstanceForExistingUser {

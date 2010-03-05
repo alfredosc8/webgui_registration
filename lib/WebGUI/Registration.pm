@@ -29,7 +29,7 @@ sub adminConsole {
     my $registrationId  = $self->getId;
     my $baseParams      = 'registration=registration;registrationId='.$registrationId;
 
-    if ( $session->user->isInGroup( 3 ) ) {
+    if ( $self->canEdit ) {
         $ac->addSubmenuItem( $url->page( 'registration=admin;func=view'             ), 'Manage registrations'       );
         $ac->addSubmenuItem( $url->page( 'registration=admin;func=addRegistration'  ), 'Add a new registration'     );
         $ac->addSubmenuItem( $url->page( "$baseParams;func=manage"                  ), 'Manage registration'        );
@@ -45,6 +45,13 @@ sub adminConsole {
     $ac->setIcon('/extras/spacer.gif');
 
     return $ac->render( $content, $title );
+}
+
+#-------------------------------------------------------------------
+sub canEdit {
+    my $self = shift;
+
+    return $self->session->user->isInGroup( 3 );
 }
 
 #-------------------------------------------------------------------
@@ -599,6 +606,30 @@ sub autoApprove {
     return;
 }
 
+#-------------------------------------------------------------------
+sub www_addStep {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $self->canEdit;
+
+    my $namespace = $session->form->process( 'namespace' );
+    return "Illegal namespace [$namespace]" 
+        unless any { $namespace eq $_ } @{ $session->config->get('registrationSteps') || [] };
+
+    my $step = eval {
+        WebGUI::Pluggable::instanciate( $namespace, 'create', [
+            $session,
+            { registrationId => $self->getId },
+        ] );
+    };
+
+    return "Can't instanciate step plugin $namespace: $@" if $@;
+
+    return $step->www_edit;
+    
+####    adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
+}
 #-------------------------------------------------------------------
 sub www_completeRegistration {
     my $self    = shift;
