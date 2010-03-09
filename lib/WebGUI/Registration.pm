@@ -404,7 +404,6 @@ sub new {
     my $id      = shift;
     my $userId  = shift || $session->user->userId;
 
-$session->log->warn( "$userId, " . $session->user->userId );
     my $self    = $class->SUPER::new( $session, $id );
 
     $instance{ id $self } = $self->getInstance( $userId );
@@ -800,8 +799,12 @@ sub www_managePendingInstances {
 #-------------------------------------------------------------------
 sub www_manage {
     my $self = shift;
+    
+    return $self->www_edit if $self->session->user->isAdmin;
 
-    return $self->www_edit;
+    my $message = 'Use the menu on the right to manage this registration';
+
+    return $self->adminConsole( $message, 'Manage ' . $self->get('title') );
 }
 
 #-------------------------------------------------------------------
