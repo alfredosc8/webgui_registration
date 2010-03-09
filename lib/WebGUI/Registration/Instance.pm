@@ -387,9 +387,10 @@ sub www_editSave {
 
 
     # Create notification mail tmpl_vars
-    my $var;
-    #### TODO: homepageurl niet hardcoden
-    $var->{ homepage_url        } = $user->profileField( 'homepageUrl' );
+    my %userData = %{ $user->get };
+    my $var = { 
+        map {( "user_$_"   => $userData{ $_ } )} keys %userData,
+    };
     $var->{ username            } = $user->username;
 
     # Send notification mail
