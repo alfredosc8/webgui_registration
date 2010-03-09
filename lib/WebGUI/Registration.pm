@@ -37,8 +37,8 @@ sub adminConsole {
     }
 
     if ( $self->canManage ) {
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=listPendingRegistrations"    ), 'List pending registrations' );
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=listApprovedRegistrations"   ), 'List approved registrations');
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=managePendingInstances"    ), 'List pending registrations' );
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=manageApprovedInstances"   ), 'List approved registrations');
         $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
     }
 
@@ -404,6 +404,7 @@ sub new {
     my $id      = shift;
     my $userId  = shift || $session->user->userId;
 
+$session->log->warn( "$userId, " . $session->user->userId );
     my $self    = $class->SUPER::new( $session, $id );
 
     $instance{ id $self } = $self->getInstance( $userId );
@@ -741,6 +742,59 @@ sub www_login {
     # Cannot use WG::Op::www_auth b/c the user style is hardcoded...
     return $self->processStyle( WebGUI::Auth::WebGUI->new($session)->init );
     return WebGUI::Operation::Auth::www_auth($session, 'init');
+}
+
+#-------------------------------------------------------------------
+sub getInstanceList {
+    my $self    = shift;
+    my $status  = shift;
+    my $session = $self->session;
+
+    my $it = WebGUI::Registration::Instance->getAllIterator( $session, {
+        constraints => [
+            { 'registrationId=? and status=?' => [ $self->getId, $status ] },
+        ],
+    } );
+    my $output = '<table>';
+
+    while ( my $instance = $it->() ) {
+        my $id      = $instance->getId;
+        my $user    = $instance->user;
+        my $base    = "registration=instance;instanceId=$id";
+
+        $output .= '<tr>'
+            . '<td><a href="' . $session->url->page( "$base;func=delete" )  . '">DELETE</a></td>'
+            . '<td><a href="' . $session->url->page( "$base;func=edit" )    . '">EDIT</a></td>'
+            . '<td>'          . $user->username                             . '</td>'
+            . '</tr>';
+    }
+    $output .= '</table>';
+
+    return $output;
+}
+
+#-------------------------------------------------------------------
+sub www_manageApprovedInstances {
+    my $self    = shift;
+    my $priv    = $self->session->privilege;
+
+    return $priv->insufficient unless $self->canManage;
+
+    my $output = $self->getInstanceList( 'approved' );
+
+    return $self->adminConsole( $output, 'Approved accounts' );
+}
+
+#-------------------------------------------------------------------
+sub www_managePendingInstances {
+    my $self    = shift;
+    my $priv    = $self->session->privilege;
+
+    return $priv->insufficient unless $self->canManage;
+
+    my $output = $self->getInstanceList( 'pending' );
+
+    return $self->adminConsole( $output, 'Pending accounts' );
 }
 
 #-------------------------------------------------------------------

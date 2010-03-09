@@ -95,10 +95,140 @@ sub user {
     return WebGUI::User->new( $self->session, $self->get('userId') );
 }
 
+#----------------------------------------------------------------------------
 sub registration {
     my $self = shift;
 
     return WebGUI::Registration->new( $self->session, $self->get('registrationId'), $self->user->userId ); 
+}
+
+#-------------------------------------------------------------------
+sub www_delete {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $self->registration->canManage;
+
+    my $output = 'If you proceed the following checked properties will be deleted:<br />';
+
+    # Setup available deletion steps
+    my $deleteSteps;
+#    $deleteSteps->{ deleteAccountStatus     } = 'Account status';
+    $deleteSteps->{ executeWorkflow         } = 'Execute account removal workflow';
+    $deleteSteps->{ deleteUserAccount       } = 'Remove user account';
+
+    foreach my $step ( @{ $self->registration->getSteps } ) {
+        my $deleteMessage = eval { $step->onDeleteAccount };
+        if ( $@ ) {
+            $session->log->error("Error occurred in onDelete: $@");
+            next;
+        }
+
+        $deleteSteps->{ 'step_' . $step->getId } = $deleteMessage if $deleteMessage;
+    }
+
+    # Setup Form
+    $output .= 
+        WebGUI::Form::formHeader( $session )
+        . WebGUI::Form::hidden(   $session, { name => 'registration',   value => 'instance'         } )
+        . WebGUI::Form::hidden(   $session, { name => 'instanceId',     value => $self->getId       } )
+        . WebGUI::Form::hidden(   $session, { name => 'func',           value => 'deleteConfirm'    } )
+        ;
+
+    # Wrap deletion steps into the form
+    $output .= '<ul><li>';
+    $output .=  join    '</li><li>', 
+                map     { 
+                            WebGUI::Form::checkbox( $session, { name => $_, value => 1, checked => 1 } )
+                            . $deleteSteps->{ $_ }
+                        }
+                keys    %$deleteSteps
+                ;
+    $output .= '</li></ul>';
+    $output .= WebGUI::Form::submit($session, {value => "Delete checked properties"});
+    $output .= WebGUI::Form::formFooter($session);
+
+    $output .= '<br /><b><a href="' 
+        . $session->url->page( 'registration=registration;func=managePendingInstances;registrationId=' . $self->registration->getId )
+        . '">Cancel and return to account list</a></b><br />';
+
+    return $self->registration->adminConsole( $output, 'Delete account' );
+}
+
+#-------------------------------------------------------------------
+sub www_deleteConfirm {
+    my $self    = shift; 
+    my $session = $self->session;
+    my $form    = $session->form;
+
+    return $session->privilege->insufficient unless $self->registration->canManage;
+
+    my $registration = $self->registration;
+    my @actions;
+
+    # Execute workflow
+    my $workflowId = $registration->get('removeAccountWorkflowId');
+    if ( $session->form->process( 'executeWorkflow' ) && $workflowId ) {
+        WebGUI::Workflow::Instance->create($session, {
+            workflowId  => $workflowId,
+            methodName  => "new",
+            className   => "WebGUI::User",
+#           mode        => 'realtime',
+            parameters  => $self->get('userId'),
+            priority    => 1
+        });
+        push @actions, 'Executiong workflow';
+    }
+    
+    # Execute onDelete handler of each step
+    foreach my $step ( @{ $registration->getSteps } ) {
+        if ( $form->get( 'step_'.$step->getId ) ) {
+            my $message = eval{ $step->onDeleteAccount( 1 ) };
+            if ($@) {
+                $message = 
+                    'An error occured while deleting step '. $step->get('title') 
+                    . ' of type ' . $step->namespace
+                    . " with the following message: '$@'";
+            }
+            push @actions, $message;
+        }
+    }
+    
+    # Remove user account
+    if ( $form->get('deleteUserAccount') ) {
+        if ( $self->user->isVisitor || $self->user->userId eq '3' ) {
+            push @actions, 'Cannot remove a protected account. Skipping.';
+        }
+        else {
+            $self->user->delete;
+            push @actions, 'Removing user account';
+        }
+    }
+
+    # Delete account status
+#    if ( $session->form->process( 'deleteAccountStatus' ) ) {
+#        $session->db->write('delete from Registration_status where registrationId=? and userId=?', [
+#            $registration->getId,
+#            $registration->instance->user->userId,
+#        ]);
+#        push @actions, 'Removing account status';
+#    }
+
+    # remove instance
+    $self->delete;
+
+    my $base    = 'registration=registration;registrationId=' . $registration->getId; 
+    my $output  = 
+        'Removing account:<br />'
+        . '<ul><li>' . join( '</li><li>', @actions ) . '</li></ul>'
+        . '<a href="' 
+        . $session->url->page( "$base;func=managePendingInstances" )
+        . '">Return to pending account list</a><br />'
+        . '<a href="' 
+        . $session->url->page( "$base;func=manageApprovedInstances" )
+        . '">Return to approved account list</a>';
+
+    return $self->registration->adminConsole( $output, 'Account deleted' );
 }
 
 #----------------------------------------------------------------------------
