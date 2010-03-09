@@ -28,16 +28,6 @@ sub adminConsole {
 }
 
 #-------------------------------------------------------------------
-sub canManage {
-    my $session         = shift;
-    my $registrationId  = shift || $session->form->param('registrationId'); 
-
-    my $registration    = WebGUI::Registration->new( $session, $registrationId );
-
-    return $session->user->isInGroup( $registration->get('registrationManagersGroupId') );
-}
-
-#-------------------------------------------------------------------
 sub www_addRegistration {
     my $session = shift;
 
@@ -49,35 +39,35 @@ sub www_addRegistration {
 }
 
 
-#-------------------------------------------------------------------
-sub www_createInstanceForExistingUser {
-    my $session = shift;
-
-    return $session->privilege->insufficient unless canManage( $session );
-
-    my $f = WebGUI::HTMLForm->new( $session );
-    $f->hidden(
-        name    => 'registration',
-        value   => 'admin',
-    );
-    $f->hidden(
-        name    => 'func',
-        value   => 'editRegistrationInstanceData',
-    );
-    $f->hidden(
-        name    => 'registrationId',
-        value   => $session->form->process('registrationId'),
-    );
-    $f->user(
-        name    => 'userId',
-        label   => 'Choose',
-    );
-    $f->submit(
-        value   => 'Proceed',
-    );
-
-    return adminConsole( $session, $f->print, 'Add account for existing user' );
-}
+##-------------------------------------------------------------------
+#sub www_createInstanceForExistingUser {
+#    my $session = shift;
+#
+#    return $session->privilege->insufficient unless canManage( $session );
+#
+#    my $f = WebGUI::HTMLForm->new( $session );
+#    $f->hidden(
+#        name    => 'registration',
+#        value   => 'admin',
+#    );
+#    $f->hidden(
+#        name    => 'func',
+#        value   => 'editRegistrationInstanceData',
+#    );
+#    $f->hidden(
+#        name    => 'registrationId',
+#        value   => $session->form->process('registrationId'),
+#    );
+#    $f->user(
+#        name    => 'userId',
+#        label   => 'Choose',
+#    );
+#    $f->submit(
+#        value   => 'Proceed',
+#    );
+#
+#    return adminConsole( $session, $f->print, 'Add account for existing user' );
+#}
 
 
 #-------------------------------------------------------------------
@@ -94,36 +84,31 @@ sub www_managerScreen {
 #-------------------------------------------------------------------
 sub www_view {
     my $session = shift;
+    my $user    = $session->user;
 
-#    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
-#    return $session->privilege->insufficient unless canManage( $session );
-
-#    my @registrationIds = $session->db->buildArray( 'select registrationId from Registration' );
     my $registrationIds = WebGUI::Registration->getAllIds( $session );
 
-    my $output = '<ul>';
+    my @managable;
     foreach my $id ( @{ $registrationIds } ) {
         my $registration    = WebGUI::Registration->new( $session, $id );
 
-        next unless canManage( $session, $id );
+        next unless $registration->canManage( $session, $id );
 
         my $deleteButton    = $session->icon->delete(
             "registration=registration;func=delete;registrationId=$id",
             undef,
             'Weet u zeker dat u deze registratie wil verwijderen?',
         );
-#        my $editButton      = $session->icon->edit(
-##### TODO: Manage scherm
-#            "registration=registration;func=edit;registrationId=$id",
-#        );
 
-        $output .= "<li>$deleteButton <a href=\"" 
+        push @managable,
+            "$deleteButton <a href=\"" 
             . $session->url->page("registration=registration;func=manage;registrationId=$id") 
-            . '">' . $registration->get('title') . '</a></li>';
+            . '">' . $registration->get('title') . '</a>';
     }
 
-    $output .= '</ul>';
+    return return $session->privilege->insufficient unless @managable || $user->isAdmin;
 
+    my $output .= '<ul>' . join( '</li><li>', @managable ) . '</li></ul>';
     return adminConsole( $session, $output, 'Manage Registrations' );
 }
 
