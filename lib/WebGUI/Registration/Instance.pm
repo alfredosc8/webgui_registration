@@ -53,11 +53,11 @@ sub newByUserId {
 
     my $id = $class->getAllIds( $session, {
         sequenceKeyValue    => $registrationId,
-        contstraints        => [ 
+        constraints        => [ 
             { 'userId=?'  => $userId },
         ],
     } );
-
+    
     return $class->new( $session, $id->[0] ) if $id->[0];
 
     return;
