@@ -381,29 +381,50 @@ sub www_editSave {
 
     
     # ========== No errors occurred ====================================
-    # Instanciate or create user
-#    my $user = WebGUI::User->new( $session, $userId );
-#    $user->username( $username );
-#    $user->profileField( 'email', $email );
-#
-#    # Apply auth plugin stuff
-#    my $authInstance = WebGUI::Operation::Auth::getInstance($session, 'WebGUI', $user->userId);
-#    $authInstance->editUserFormSave;
-    
-    # Set the registration object to use the instanciated user
-#    $registration->user( $user );
+
+    # Apply the steps and set status to approved. 
+    $self->approve;
+
+
+    # Create notification mail tmpl_vars
+    my $var;
+    #### TODO: homepageurl niet hardcoden
+    $var->{ homepage_url        } = $user->profileField( 'homepageUrl' );
+    $var->{ username            } = $user->username;
+
+    # Send notification mail
+    my $mailTemplate    = WebGUI::Asset::Template->new($session, $registration->get('siteApprovalMailTemplateId'));
+    my $mailBody        = $mailTemplate->process( $var );
+    my $mail            = WebGUI::Mail::Send->create($session, {
+        toUser      => $user->userId,
+        subject     => $registration->get('siteApprovalMailSubject'),
+    });
+    $mail->addText($mailBody);
+    $mail->queue;
+
+    return WebGUI::Registration::Admin::www_listPendingRegistrations( $session );
+}
+
+sub approve {
+    my $self            = shift;
+    my $session         = $self->session;
+    my $registration    = $self->registration;
+    my $user            = $self->user;
 
     # Save the current version tag so that we can the user to his current tag after the application process.
     my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
 
     # Create a separate tag for the content applied by the registration steps.
     my $tempVersionTag      = WebGUI::VersionTag->create($session, {
-        name    => 'Installation of user pages for '.$self->user->username,
+        name    => 
+            sprintf( 'Approval of registration %s for %s', 
+                $self->registration->get('title'), $self->user->username,
+            ),
     });
     $tempVersionTag->setWorking;
     
     # Apply the registration steps 
-    foreach my $step ( @{ $steps } ) {
+    foreach my $step ( @{ $registration->getSteps } ) {
         $step->apply;
     }
 
@@ -428,33 +449,11 @@ sub www_editSave {
             priority    => 1
         });
     } 
-
+    
     $self->update( { status => 'approved' } );
 
-    # Create notification mail tmpl_vars
-    my $var;
-    #### TODO: homepageurl niet hardcoden
-    $var->{ homepage_url        } = $user->profileField( 'homepageUrl' );
-    $var->{ username            } = $user->username;
-
-    # Send notification mail
-    my $mailTemplate    = WebGUI::Asset::Template->new($session, $registration->get('siteApprovalMailTemplateId'));
-    my $mailBody        = $mailTemplate->process( $var );
-    my $mail            = WebGUI::Mail::Send->create($session, {
-        toUser      => $user->userId,
-        subject     => $registration->get('siteApprovalMailSubject'),
-    });
-    $mail->addText($mailBody);
-    $mail->queue;
-
-    return WebGUI::Registration::Admin::www_listPendingRegistrations( $session );
+    return;
 }
-
-
-
-
-
-
 
 1;
 
