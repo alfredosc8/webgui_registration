@@ -597,7 +597,7 @@ sub requestApproval {
     return;
 }
 
-
+#-------------------------------------------------------------------
 sub autoApprove {
     my $self = shift;
 
@@ -647,12 +647,12 @@ sub www_completeRegistration {
 
     $self->instance->update({ status => 'pending' });
 
-#    if ( $self->get('autoApprove') ) {
-#        $self->autoApprove;
-#    }
-#    else {
+    if ( $self->get('autoApprove') ) {
+        $self->autoApprove;
+    }
+    else {
         $self->requestApproval;
-#    }
+    }
 
     #### TODO: Ook nog een autoapprove template klussen en die in bovenstaande sub stoppen...
     my $var = {};
