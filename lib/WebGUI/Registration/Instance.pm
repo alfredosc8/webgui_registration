@@ -22,7 +22,7 @@ sub create {
 
     if ( !defined $prop->{userId} ) {
         my $u = WebGUI::User->create( $session );
-        $u->username( $self->session->getId );
+        $u->username( $u->getId );
         $u->disable;
 
         $self->update( { userId => $u->userId } );
@@ -125,6 +125,13 @@ sub getStepData {
     my $data = $self->get( 'stepData' );
 
     return $data->{ $stepId };
+}
+
+#----------------------------------------------------------------------------
+sub hasAutoAccount {
+    my $self = shift;
+
+    return $self->user->userId eq $self->user->username && !$self->user->isEnabled;
 }
 
 #----------------------------------------------------------------------------

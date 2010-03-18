@@ -54,6 +54,7 @@ sub crud_definition {
 sub isComplete {
     my $self = shift;
 
+    return !$self->registration->instance->hasAutoAccount;
     return !$self->session->user->isVisitor;
 }
 
