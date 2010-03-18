@@ -13,7 +13,7 @@ use WebGUI::Utility;
 use Tie::IxHash;
 use WebGUI::Registration::Admin;
 
-public   instance           => my %instance;
+private instance           => my %instance;
 
 use base qw{ WebGUI::Crud };
 
@@ -389,12 +389,31 @@ sub getInstance {
     my $userId  = shift;
     my $session = $self->session;
 
-    my $instance = 
-           WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
-        || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
+    my $instance;
+    if ( $userId eq '1' ) {
+        $instance =
+               WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
+            || WebGUI::Registration::Instance->create( $session, { sessionId => $session->getId, registrationId => $self->getId } )
         ;
+    }
+    else {
+        $instance = 
+               WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
+            || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
+        ;
+    }
 
     return $instance;
+}
+
+sub instance {
+    my $self = shift;
+
+    return $instance{ id $self } if $instance{ id $self };
+
+    $instance{ id $self } = $self->getInstance( $self->session->user->userId );
+
+    return $instance{ id $self };
 }
 
 #-------------------------------------------------------------------
@@ -406,7 +425,7 @@ sub new {
 
     my $self    = $class->SUPER::new( $session, $id );
 
-    $instance{ id $self } = $self->getInstance( $userId );
+#    $instance{ id $self } = $self->getInstance( $userId );
 
     return $self;
 }
@@ -861,12 +880,12 @@ sub www_viewStep {
     my $self    = shift;
     my $session = $self->session;
 
-    return $self->www_noValidUser unless $self->hasValidUser;
+#    return $self->www_noValidUser unless $self->hasValidUser;
 
     my $output;
 
     # Set site status
-    $self->instance->update({ status => 'incomplete' });
+#    $self->instance->update({ status => 'incomplete' });
 
     # Get current step
     my $currentStep = $self->getCurrentStep;
@@ -890,7 +909,7 @@ sub www_viewStepSave {
     my $self    = shift;
     my $session = $self->session;
 
-    return $self->www_noValidUser unless $self->hasValidUser;
+#    return $self->www_noValidUser unless $self->hasValidUser;
 
     my $currentStep = $self->getCurrentStep;
 

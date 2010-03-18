@@ -3,13 +3,34 @@ package WebGUI::Registration::Instance;
 use strict;
 
 use WebGUI::Registration::Admin;
-
-
+use Carp qw{ cluck croak };
+use Data::Dump 'pp';
 use base qw{ WebGUI::Crud };
 
 sub adminConsole {
     return WebGUI::Registration::Admin::adminConsole( @_ );
 }
+
+sub create {
+    my $class   = shift;
+    my $session = shift;
+    my $prop    = shift;
+
+    croak "Need either a userId or a sessionId" unless exists $prop->{userId} || exists $prop->{sessionId};
+
+    my $self = $class->SUPER::create( $session, $prop );
+
+    if ( !defined $prop->{userId} ) {
+        my $u = WebGUI::User->create( $session );
+        $u->username( $self->session->getId );
+        $u->disable;
+
+        $self->update( { userId => $u->userId } );
+    }
+
+    return $self;
+}
+
 
 #----------------------------------------------------------------------------
 sub crud_definition {
@@ -29,6 +50,10 @@ sub crud_definition {
         fieldType       => 'guid',
         noFormPost      => 1,
     };
+    $definition->{ properties }->{ sessionId } = {
+        fieldType       => 'guid',
+        noFormPost      => 1,
+    };
     $definition->{ properties }->{ status } = {
         fieldType       => 'text',
         defaultValue    => 'incomplete',
@@ -44,6 +69,35 @@ sub crud_definition {
     return $definition;
 }
 
+#----------------------------------------------------------------------------
+sub new {
+    my $class   = shift;
+    my $session = shift;
+    my @params  = @_;
+
+    my $self = $class->SUPER::new( $session, @_ );
+
+    return $self;
+}
+
+#----------------------------------------------------------------------------
+sub newBySessionId {
+    my $class           = shift;
+    my $session         = shift;
+    my $registrationId  = shift;
+    my $sessionId       = shift;
+
+    my $id = $class->getAllIds( $session, {
+        sequenceKeyValue    => $registrationId,
+        constraints        => [ 
+            { 'sessionId=?'  => $sessionId },
+        ],
+    } );
+    
+    return $class->new( $session, $id->[0] ) if $id->[0];
+
+    return;
+}
 #----------------------------------------------------------------------------
 sub newByUserId {
     my $class           = shift;
