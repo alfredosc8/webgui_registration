@@ -77,7 +77,7 @@ sub processStepFormData {
     my $session = $self->session;
     my $form    = $session->form;
 
-    my @required = qw{ username email identifier identifierConfirm };
+    my @required = qw{ username email identifier identifierConfirm captcha };
     foreach ( @required ) {
         $self->pushError( "$_ is required" ) unless $form->get( $_ );
     }
@@ -93,6 +93,9 @@ sub processStepFormData {
     };
     if ( $form->get('identifier') ne $form->get('identifierConfirm') ) {
         $self->pushError( 'The password you entered doesn\'t match its confirmation' );
+    };
+    unless ( $form->captcha( 'captcha' ) ) {
+        $self->pushError( 'The captcha you entered does not match the image' );
     };
 
     unless ( @{$self->error} ) {
@@ -141,8 +144,13 @@ sub getViewVars {
         field_isRequired    => 1,
     };
     push @fields, {
-        field_label         => 'Password confirmation',
+        field_label         => 'Email',
         field_formElement   => WebGUI::Form::email( $session, { name=>'email', value => $form->get('email') } ),
+        field_isRequired    => 1,
+    };
+    push @fields, {
+        field_label         => 'Captcha',
+        field_formElement   => WebGUI::Form::captcha( $session, { name=>'captcha' } ),
         field_isRequired    => 1,
     };
 
