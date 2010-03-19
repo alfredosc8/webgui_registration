@@ -4,6 +4,7 @@ use strict;
 
 use Data::Dumper;
 use List::Util qw{ first };
+use WebGUI::Form;
 
 use base qw{ WebGUI::Registration::Step };
 
@@ -13,6 +14,8 @@ sub apply {
     my $session = $self->session;
     my $user    = $self->registration->instance->user;
 
+    $user->enable;
+    $session->user( { userId => $user->userId } );
 }
 
 #-------------------------------------------------------------------
@@ -112,9 +115,9 @@ sub processStepFormData {
             } );
         }
 
-        if ($session->user->isVisitor) {
-            $session->user( { userId => $user->getId } );
-        }
+#        if ($session->user->isVisitor) {
+#            $session->user( { userId => $user->getId } );
+#        }
     }
 
     # Return no errors since there aren't any.
