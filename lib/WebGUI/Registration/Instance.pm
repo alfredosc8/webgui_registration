@@ -149,6 +149,23 @@ sub setStepData {
 }
 
 #----------------------------------------------------------------------------
+sub syncUserToSession {
+    my $self    = shift;
+    my $session = $self->session;
+
+    if ( 
+           !$session->user->isVisitor                       # Only sync for logged in users
+        && $self->hasAutoAccount                            # Only sync if the account tied to the instance is automatically generated
+        && $session->user->userId ne $self->user->userId    # Make sure we don't accidentally delete the attached autoAccount
+    ) {
+        $self->user->delete;
+        $self->update( { userId => $self->session->user->userId } );
+    }
+
+    return;
+}
+
+#----------------------------------------------------------------------------
 sub user {
     my $self = shift;
 
@@ -307,7 +324,7 @@ sub www_edit {
 
     my $registration = $self->registration; ####WebGUI::Registration->new( $session, $registrationId, $userId );
 
-    return adminConsole( $session, "De gebruiker '". $self->instance->user->username ."' heeft al een account.", "Approve account" )
+    return adminConsole( $session, "De gebruiker '". $self->user->username ."' heeft al een account.", "Approve account" )
         if $self->get('status') eq 'approved';
 
     my $steps           = $registration->getSteps;

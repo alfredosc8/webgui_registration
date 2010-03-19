@@ -881,11 +881,15 @@ sub www_viewStep {
     my $session = $self->session;
 
 #    return $self->www_noValidUser unless $self->hasValidUser;
+#    $self->instance->syncUserToSession;
 
     my $output;
+ 
+    # Sync instance to current user if necessary
+    $self->instance->syncUserToSession;
 
     # Set site status
-#    $self->instance->update({ status => 'incomplete' });
+    $self->instance->update({ status => 'incomplete' });
 
     # Get current step
     my $currentStep = $self->getCurrentStep;
