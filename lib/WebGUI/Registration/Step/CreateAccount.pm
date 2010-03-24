@@ -80,11 +80,16 @@ sub processStepFormData {
     my $session = $self->session;
     my $form    = $session->form;
 
-    my @required = qw{ username email identifier identifierConfirm captcha };
+    my @required = 
+        qw{ username email identifier identifierConfirm captcha }, 
+        map     { $_->getId } 
+        grep    { $_->isRequired }
+                @{ WebGUI::ProfileField->getRegistrationFields( $session ) }
+    ;
     foreach ( @required ) {
         $self->pushError( "$_ is required" ) unless $form->get( $_ );
     }
-
+    
     my $requestedUser   = WebGUI::User->newByUsername( $session, $form->get('username') );
     my $emailUser       = WebGUI::User->newByEmail( $session, $form->get('email') );
 
@@ -103,6 +108,13 @@ sub processStepFormData {
 
     unless ( @{$self->error} ) {
         my $user = $self->registration->instance->user;
+
+        $user->update( { 
+            map {( 
+                    $_->getId => $_->formField( {}, 2, $user )
+                )}
+                @{ WebGUI::ProfileField->getRegistrationFields( $session ) }
+        } );
 
         if ( !$user->isEnabled ) {
             $user->username( $form->get('username') );
@@ -151,12 +163,22 @@ sub getViewVars {
         field_formElement   => WebGUI::Form::email( $session, { name=>'email', value => $form->get('email') } ),
         field_isRequired    => 1,
     };
+
+    foreach my $field ( @{ WebGUI::ProfileField->getRegistrationFields( $session ) } ) {
+        next if $field->getId eq 'email';
+
+        push @fields, {
+            field_label         => $field->getLabel,
+            field_formElement   => $field->formField( {}, undef, undef, undef, undef, undef, 'useFormDefault' ),
+            field_isRequired    => $field->isRequired,
+        };
+    }
+
     push @fields, {
         field_label         => 'Captcha',
         field_formElement   => WebGUI::Form::captcha( $session, { name=>'captcha' } ),
         field_isRequired    => 1,
     };
-
     my $var = $self->SUPER::getViewVars;
     push @{ $var->{ field_loop } }, @fields;
 
