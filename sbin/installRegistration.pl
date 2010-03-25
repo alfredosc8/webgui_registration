@@ -121,6 +121,7 @@ sub addRegistrationSteps {
 
     print "Adding Registartion Steps to config...";
     $session->config->addToArray( 'registrationSteps', [
+        "WebGUI::Registration::Step::CreateAccount",
         "WebGUI::Registration::Step::StepOne",
         "WebGUI::Registration::Step::StepTwo",
         "WebGUI::Registration::Step::ProfileData",
