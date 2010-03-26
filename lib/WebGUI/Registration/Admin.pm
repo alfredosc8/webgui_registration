@@ -35,7 +35,10 @@ sub www_addRegistration {
 
     my $registration    = WebGUI::Registration->create( $session );
 
-    return adminConsole( $session, $registration->getEditForm->print, 'Add Registration');
+    my $form = $registration->getEditForm;
+    $form->submit;
+
+    return adminConsole( $session, $form->print, 'Add Registration');
 }
 
 
