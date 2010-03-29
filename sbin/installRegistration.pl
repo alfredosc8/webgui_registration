@@ -71,7 +71,7 @@ sub installRegistrationTables {
     WebGUI::Registration->crud_createTable( $session );
     
     $session->db->write(<<EO_STATUS);
-    CREATE TABLE `Registration_status` (
+    CREATE TABLE IF NOT EXISTS `Registration_status` (
         `registrationId` char(22) NOT NULL,
         `userId` char(22) NOT NULL,
         `status` char(20) NOT NULL default 'setup',
@@ -81,7 +81,7 @@ sub installRegistrationTables {
 EO_STATUS
    
     $session->db->write(<<EO_ACCT_DATA);
-    CREATE TABLE `RegistrationStep_accountData` (
+    CREATE TABLE IF NOT EXISTS `RegistrationStep_accountData` (
         `stepId` char(22) NOT NULL,
         `userId` char(22) NOT NULL,
         `status` char(20) default NULL,
