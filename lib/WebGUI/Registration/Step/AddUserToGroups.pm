@@ -23,7 +23,7 @@ sub crud_definition {
     my $session     = shift;
     my $definition  = $class->SUPER::crud_definition( $session );
 
-    $definition->{ dynamic }->{ addUserToGroups } => {
+    $definition->{ dynamic }->{ addUserToGroups } = {
         fieldType           => 'group',
         tab                 => 'properties',
         label               => 'Add user to groups',
