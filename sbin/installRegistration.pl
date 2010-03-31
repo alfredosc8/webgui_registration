@@ -142,8 +142,6 @@ sub addRegistrationSteps {
     my %steps = map { $_ => 1 } @{ $session->config->get( 'registrationSteps' ) || [] };
     $steps{ $_ } = 1 for (
         "WebGUI::Registration::Step::CreateAccount",
-        "WebGUI::Registration::Step::StepOne",
-        "WebGUI::Registration::Step::StepTwo",
         "WebGUI::Registration::Step::ProfileData",
         "WebGUI::Registration::Step::AddUserToGroups",
         "WebGUI::Registration::Step::Homepage",
