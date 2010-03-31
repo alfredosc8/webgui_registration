@@ -15,6 +15,7 @@ use WebGUI::Session;
 use WebGUI::Registration;
 use WebGUI::Registration::Step;
 use WebGUI::Registration::Instance;
+use List::MoreUtils qw{ insert_after_string };
 
 GetOptions(
     'configFile=s'  => \$configFile,
@@ -39,6 +40,12 @@ sub installRegistrationInstanceTables {
     my $session = shift || die 'no session';
     print "Installing registration instance table...";
 
+    my $tableName = WebGUI::Registration::Instance->crud_definition( $session )->{ tableName };
+    if ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
+        print "Skipping\n";
+        return;
+    }
+
     WebGUI::Registration::Instance->crud_createTable( $session );
 
     print "Done\n";
@@ -49,14 +56,26 @@ sub installRegistrationStepTables {
     my $session = shift || die 'no session';
     print "Installing registration step table...";
 
+    my $tableName = WebGUI::Registration::Step->crud_definition( $session )->{ tableName };
+    if ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
+        print "Skipping\n";
+        return;
+    }
+    
     WebGUI::Registration::Step->crud_createTable( $session );
 
     print "Done\n";
 }
 
+#----------------------------------------------------------------------------
 sub addUrlTriggerSetting {
     my $session = shift;
     print "Adding setting to store trigger urls...";
+
+    if ( defined $session->setting->get( 'registrationUrlTriggers' ) ) {
+        print "Skipping\n";
+        return;
+    }
 
     $session->setting->add( 'registrationUrlTriggers', '{}' );
 
@@ -71,7 +90,7 @@ sub installRegistrationTables {
     WebGUI::Registration->crud_createTable( $session );
     
     $session->db->write(<<EO_STATUS);
-    CREATE TABLE `Registration_status` (
+    CREATE TABLE IF NOT EXISTS `Registration_status` (
         `registrationId` char(22) NOT NULL,
         `userId` char(22) NOT NULL,
         `status` char(20) NOT NULL default 'setup',
@@ -81,7 +100,7 @@ sub installRegistrationTables {
 EO_STATUS
    
     $session->db->write(<<EO_ACCT_DATA);
-    CREATE TABLE `RegistrationStep_accountData` (
+    CREATE TABLE IF NOT EXISTS `RegistrationStep_accountData` (
         `stepId` char(22) NOT NULL,
         `userId` char(22) NOT NULL,
         `status` char(20) default NULL,
@@ -95,13 +114,11 @@ EO_ACCT_DATA
 
 sub addRegistrationContentHandler {
     my $session = shift;
+    print "Adding Registration Content Handler...";
 
-    print "Adding Registration Content Handler..";
     my @handlers = @{ $session->config->get('contentHandlers') };
-    use List::MoreUtils qw(insert_after_string);
     if ( !grep { $_ eq 'WebGUI::Content::Registration' } @handlers ) {
-        insert_after_string 'WebGUI::Content::Shop', 'WebGUI::Content::Registration',
-          @handlers;
+        insert_after_string 'WebGUI::Content::Shop', 'WebGUI::Content::Registration', @handlers;
         $session->config->set( 'contentHandlers', \@handlers );
     }
     
@@ -110,9 +127,10 @@ sub addRegistrationContentHandler {
 
 sub addRegistrationProgressMacro {
     my $session = shift;
+    print "Adding RegistrationProgress Macro...";
 
-    print "Adding RegistrationProgress Macro..";
     $session->config->set('macros', { %{$session->config->get('macros')}, RegistrationProgress => 'RegistrationProgress' } );
+
     print "Done\n";
 }
 
@@ -120,7 +138,9 @@ sub addRegistrationSteps {
     my $session = shift;
 
     print "Adding Registartion Steps to config...";
-    $session->config->addToArray( 'registrationSteps', [
+    
+    my %steps = map { $_ => 1 } @{ $session->config->get( 'registrationSteps' ) || [] };
+    $steps{ $_ } = 1 for (
         "WebGUI::Registration::Step::CreateAccount",
         "WebGUI::Registration::Step::StepOne",
         "WebGUI::Registration::Step::StepTwo",
@@ -130,7 +150,10 @@ sub addRegistrationSteps {
         "WebGUI::Registration::Step::Message",
         "WebGUI::Registration::Step::UserGroup",
         "WebGUI::Registration::Step::AddPosts"
-    ] );
+    );
+
+    $session->config->set( 'registrationSteps', [ keys %steps ] );
+
     print "Done\n";
         
 }
