@@ -40,14 +40,7 @@ sub installRegistrationInstanceTables {
     my $session = shift || die 'no session';
     print "Installing registration instance table...";
 
-    my $tableName = WebGUI::Registration::Instance->crud_definition( $session )->{ tableName };
-    if ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
-        WebGUI::Registration::Instance->crud_updateTable( $session );
-        $session->db->write( "update $tableName set presets ='{}' where presets is null or presets=''" );
-    }
-    else {
-        WebGUI::Registration::Instance->crud_createTable( $session );
-    }
+    crudCreateOrUpdate( $session, 'WebGUI::Registration::Instance' );
 
     print "Done\n";
 }
@@ -57,13 +50,7 @@ sub installRegistrationStepTables {
     my $session = shift || die 'no session';
     print "Installing registration step table...";
 
-    my $tableName = WebGUI::Registration::Step->crud_definition( $session )->{ tableName };
-    if ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
-        print "Skipping\n";
-        return;
-    }
-    
-    WebGUI::Registration::Step->crud_createTable( $session );
+    crudCreateOrUpdate( $session, 'WebGUI::Registration::Step' );
 
     print "Done\n";
 }
@@ -88,11 +75,8 @@ sub installRegistrationTables {
     my $session = shift || die 'no session';
     print "Installing registration tables...";
 
-    my $tableName = WebGUI::Registration::Instance->crud_definition( $session )->{ tableName };
-    unless ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
-        WebGUI::Registration->crud_createTable( $session );
-    }
-    
+    crudCreateOrUpdate( $session, 'WebGUI::Registration' );
+
     $session->db->write(<<EO_STATUS);
     CREATE TABLE IF NOT EXISTS `Registration_status` (
         `registrationId` char(22) NOT NULL,
@@ -158,6 +142,20 @@ sub addRegistrationSteps {
 
     print "Done\n";
         
+}
+
+#----------------------------------------------------------------------------
+sub crudCreateOrUpdate {
+    my $session = shift;
+    my $class   = shift;
+
+    my $tableName = $class->crud_definition( $session )->{ tableName };
+    if ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
+        $class->crud_updateTable( $session );
+    }
+    else {
+        $class->crud_createTable( $session );
+    }
 }
 
 #----------------------------------------------------------------------------

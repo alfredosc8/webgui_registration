@@ -39,23 +39,27 @@ sub crud_definition {
     $definition->{ tableName    } = 'RegistrationStep';
     $definition->{ tableKey     } = 'stepId';
     $definition->{ sequenceKey  } = 'registrationId';
-####    $definition->{ registrationId   } = 'registrationId';
 
     $definition->{ properties }->{ registrationId } = {
         fieldType       => 'guid',
         noFormPost      => 1,
     };
-    $definition->{ properties }->{ title    } = {
+    $definition->{ properties }->{ title      } = {
         fieldType       => 'text',
         label           => 'title',
     };
-    $definition->{ properties }->{ comment  } = {
+    $definition->{ properties }->{ comment    } = {
         fieldType       => 'HTMLArea',
         label           => 'Comments',
     };
-
+    $definition->{ properties }->{ templateId } = {
+        fieldType       => 'template',
+        label           => 'Template',
+        #### TODO: Default to registration step template?
+        namespace       => 'Registration/Step',
+    };
     if ( $class->hasUserInteraction ) {
-        $definition->{ dynamic   }->{ countStep } = {
+        $definition->{ dynamic }->{ countStep } = {
             fieldType       => 'yesNo',
             label           => 'Count as seperate step?',
             defaultValue    => 1,
@@ -357,7 +361,8 @@ sub view {
 
     my $var = $self->getViewVars;
 
-    my $template = WebGUI::Asset::Template->new( $self->session, $self->registration->get('stepTemplateId') );
+    my $templateId = $self->get('templateId') || $self->registration->get('stepTemplateId');
+    my $template = WebGUI::Asset::Template->new( $self->session, $templateId );
     return $template->process($var);
 }
 
