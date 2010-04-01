@@ -162,6 +162,11 @@ sub crud_definition {
         label               => 'Auto-approval',
         defaultValue        => 1,
     };
+    $definition->{ properties }->{ deleteInstanceAfterApproval      } = {
+        fieldType           => 'yesNo',
+        label               => 'Delete instance after approval?',
+        defaultValue        => 0,
+    };
     $definition->{ properties }->{ newAccountWorkflowId             } = {
         fieldType           => 'workflow',
         type                => 'WebGUI::User',
@@ -621,6 +626,7 @@ sub autoApprove {
     my $self = shift;
 
     $self->instance->approve;
+    $self->instance->delete if $self->get('deleteInstanceAfterApproval');
 
     return;
 }
