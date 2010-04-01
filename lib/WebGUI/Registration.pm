@@ -885,6 +885,9 @@ sub www_viewStep {
 
     my $output;
  
+    # Store passed presets
+    $self->instance->processPresetsFromFormPost;
+
     # Sync instance to current user if necessary
     $self->instance->syncUserToSession;
 

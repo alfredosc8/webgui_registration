@@ -42,11 +42,12 @@ sub installRegistrationInstanceTables {
 
     my $tableName = WebGUI::Registration::Instance->crud_definition( $session )->{ tableName };
     if ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
-        print "Skipping\n";
-        return;
+        WebGUI::Registration::Instance->crud_updateTable( $session );
+        $session->db->write( "update $tableName set presets ='{}' where presets is null or presets=''" );
     }
-
-    WebGUI::Registration::Instance->crud_createTable( $session );
+    else {
+        WebGUI::Registration::Instance->crud_createTable( $session );
+    }
 
     print "Done\n";
 }
@@ -87,7 +88,10 @@ sub installRegistrationTables {
     my $session = shift || die 'no session';
     print "Installing registration tables...";
 
-    WebGUI::Registration->crud_createTable( $session );
+    my $tableName = WebGUI::Registration::Instance->crud_definition( $session )->{ tableName };
+    unless ( grep { $_ eq $tableName } $session->db->buildArray( 'show tables' ) ) {
+        WebGUI::Registration->crud_createTable( $session );
+    }
     
     $session->db->write(<<EO_STATUS);
     CREATE TABLE IF NOT EXISTS `Registration_status` (

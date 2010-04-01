@@ -65,6 +65,12 @@ sub crud_definition {
         serialize       => 1,
         noFormPost      => 1,
     };
+    $definition->{ properties }->{ presets } = {
+        fieldType       => 'textarea',
+        defaultValue    => {},
+        serialize       => 1,
+        noFormPost      => 1,
+    };
 
     return $definition;
 }
@@ -113,6 +119,23 @@ sub newByUserId {
     } );
     
     return $class->new( $session, $id->[0] ) if $id->[0];
+
+    return;
+}
+
+#----------------------------------------------------------------------------
+sub processPresetsFromFormPost {
+    my $self = shift;
+    my $form = $self->session->form;
+
+    my $presets = $self->get('presets') || {};
+    foreach my $field ( $form->param ) {
+        next unless $field =~ m{^rp_(.+)$};
+
+        $presets->{ $1 } = $form->get( $field );
+    }
+
+    $self->update( { presets => $presets } );
 
     return;
 }
