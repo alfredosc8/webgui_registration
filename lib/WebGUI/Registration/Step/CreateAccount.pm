@@ -30,7 +30,12 @@ sub crud_definition {
         tab         => 'properties',
         namespace   => 'Registration/Step/CreateAccount',
     };
-
+    $definition->{ dynamic }->{ requireEmailValidation } = {
+        fieldType   => 'yesNo',
+        label       => 'Always validate email?',
+        tab         => 'properties',
+        default     => 1,
+    };
     return $definition;
 }
 
@@ -56,9 +61,11 @@ sub crud_definition {
 #-------------------------------------------------------------------
 sub isComplete {
     my $self = shift;
+    
+    return 1 unless $self->session->user->isVisitor;
 
+    return $self->getConfigurationData->{ status } eq 'complete';
     return !$self->registration->instance->hasAutoAccount;
-    return !$self->session->user->isVisitor;
 }
 
 ##-------------------------------------------------------------------
@@ -125,6 +132,15 @@ sub processStepFormData {
             $auth->saveParams( $user->userId, $auth->authMethod, { 
                 identifier => $auth->hashPassword( $form->get('identifier') ) 
             } );
+
+            $self->setConfigurationData( status => 'created_temp_account' );
+        }
+
+        if ( $self->get('requireEmailValidation') ) {
+            $self->sendConfirmationMail( $user );
+        }
+        else {
+            $self->setConfigurationData( status => 'complete' );
         }
 
 #        if ($session->user->isVisitor) {
@@ -142,47 +158,115 @@ sub getViewVars {
     my $session = $self->session;
     my $form    = $session->form;
 
-    my @fields;
-    push @fields, {
-        field_label         => 'Username',
-        field_formElement   => WebGUI::Form::text( $session, { name=>'username', value => $form->get('username') } ),
-        field_isRequired    => 1,
-    };
-    push @fields, {
-        field_label         => 'Password',
-        field_formElement   => WebGUI::Form::password( $session, { name=>'identifier', value => $form->get('identifier') } ),
-        field_isRequired    => 1,
-    };
-    push @fields, {
-        field_label         => 'Password confirmation',
-        field_formElement   => WebGUI::Form::password( $session, { name=>'identifierConfirm', value => $form->get('identifierConfirm') } ),
-        field_isRequired    => 1,
-    };
-    push @fields, {
-        field_label         => 'Email',
-        field_formElement   => WebGUI::Form::email( $session, { name=>'email', value => $form->get('email') } ),
-        field_isRequired    => 1,
-    };
+    my $var = $self->SUPER::getViewVars;
 
-    foreach my $field ( @{ WebGUI::ProfileField->getRegistrationFields( $session ) } ) {
-        next if $field->getId eq 'email';
+    if ( $self->getConfigurationData->{ status } eq 'wait_for_confirm' ) {
+        $var->{ comment } =
+            'Er is een email gestuurd naar het doro u opgegeven emailadres ter controle. Klik op de link in het mailtje om verdre te gaan';
+    }
+    else {
+
+        my @fields;
+        push @fields, {
+            field_label         => 'Username',
+            field_formElement   => WebGUI::Form::text( $session, { name=>'username', value => $form->get('username') } ),
+            field_isRequired    => 1,
+        };
+        push @fields, {
+            field_label         => 'Password',
+            field_formElement   => WebGUI::Form::password( $session, { name=>'identifier', value => $form->get('identifier') } ),
+            field_isRequired    => 1,
+        };
+        push @fields, {
+            field_label         => 'Password confirmation',
+            field_formElement   => WebGUI::Form::password( $session, { name=>'identifierConfirm', value => $form->get('identifierConfirm') } ),
+            field_isRequired    => 1,
+        };
+        push @fields, {
+            field_label         => 'Email',
+            field_formElement   => WebGUI::Form::email( $session, { name=>'email', value => $form->get('email') } ),
+            field_isRequired    => 1,
+        };
+
+        foreach my $field ( @{ WebGUI::ProfileField->getRegistrationFields( $session ) } ) {
+            next if $field->getId eq 'email';
+
+            push @fields, {
+                field_label         => $field->getLabel,
+                field_formElement   => $field->formField( {}, undef, undef, undef, undef, undef, 'useFormDefault' ),
+                field_isRequired    => $field->isRequired,
+            };
+        }
 
         push @fields, {
-            field_label         => $field->getLabel,
-            field_formElement   => $field->formField( {}, undef, undef, undef, undef, undef, 'useFormDefault' ),
-            field_isRequired    => $field->isRequired,
+            field_label         => 'Captcha',
+            field_formElement   => WebGUI::Form::captcha( $session, { name=>'captcha' } ),
+            field_isRequired    => 1,
         };
+        push @{ $var->{ field_loop } }, @fields;
     }
 
-    push @fields, {
-        field_label         => 'Captcha',
-        field_formElement   => WebGUI::Form::captcha( $session, { name=>'captcha' } ),
-        field_isRequired    => 1,
-    };
-    my $var = $self->SUPER::getViewVars;
-    push @{ $var->{ field_loop } }, @fields;
-
     return $var;
+}
+
+#-------------------------------------------------------------------
+sub sendConfirmationMail {
+    my $self = shift;
+    my $user = shift;
+    my $session = $self->session;
+
+    my $code = $self->session->id->generate;
+    my $confirm = $self->registration->instance->getId . $code;
+
+    $self->setConfigurationData( code => $code );
+
+    my $body = $session->url->getSiteURL . "?registration=step;stepId=".$self->getId.";func=confirmEmail;confirmation=$confirm";
+
+    use Data::Dumper;
+    $session->log->warn( Dumper {
+        from    => 'noreply@oqapi.nl',
+        to      => $user->profileField('email'),
+        subject => 'Confirm',
+    } );
+
+    my $mail = WebGUI::Mail::Send->create( $session, {
+        from    => 'noreply@oqapi.nl',
+        to      => $user->profileField('email'),
+        subject => 'Confirm',
+    } );
+    $mail->addText( $body );
+    $mail->send;
+
+    $self->setConfigurationData( status => 'wait_for_confirm' );
+
+    return;
+}
+
+#-------------------------------------------------------------------
+sub www_confirmEmail {
+    my $self = shift;
+    my ($form, $id) = $self->session->quick( 'form', 'id' );
+
+    my $confirmation = $form->get('confirmation');
+    my ($instanceId, $code) = $confirmation =~ m{^(.{22})(.{22})$};
+
+    return "Invalid confirmation" unless $id->valid( $instanceId ) && $id->valid( $code );
+
+    my $instance = WebGUI::Registration::Instance->new( $self->session, $instanceId );
+    return "Instance expired"   unless $instance;
+
+    $self->registration->setInstance( $instance );
+
+    $instance->update( { sessionId => $self->session->getId } );
+    my $data = $instance->getStepData( $self->getId );
+    
+    ####TODO: Check if status is wait_for_confirm?
+    return "Invalid code"       unless $code eq $data->{ code };
+
+    $data->{ status } = 'complete';
+    $instance->setStepData( $self->getId, $data );
+
+    return $self->registration->www_view;
 }
 
 1;

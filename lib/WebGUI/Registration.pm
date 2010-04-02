@@ -388,6 +388,15 @@ sub hasValidUser {
     return $self->instance->get('userId') ne 1;
 }
 
+sub setInstance {
+    my $self        = shift;
+    my $instance    = shift;
+
+    $instance{ id $self } = $instance;
+
+    return;
+}
+
 #-------------------------------------------------------------------
 sub getInstance {
     my $self    = shift;
