@@ -8,7 +8,7 @@ use JSON;
 
 sub handler {
     my $session = shift;
-    my $registrationId;
+    my $registrationId = $session->form->process( 'registrationId' );
     my $output;
 
     my $system = $session->form->process( 'registration' );
