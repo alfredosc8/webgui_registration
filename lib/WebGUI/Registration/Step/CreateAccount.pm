@@ -100,6 +100,8 @@ sub processStepFormData {
     my $requestedUser   = WebGUI::User->newByUsername( $session, $form->get('username') );
     my $emailUser       = WebGUI::User->newByEmail( $session, $form->get('email') );
 
+    my $sendValidationMail = $self->get('requireEmailValidation');
+
     if    ( !$emailUser && !$requestedUser ) {
         # ok!
     }
@@ -109,6 +111,7 @@ sub processStepFormData {
     }
     elsif ( $emailUser && !$emailUser->isEnabled && !$requestedUser ) {
         # ok! newsletter/crm user
+        $sendValidationMail = 1;
     }
     elsif ( !$emailUser && $requestedUser ) {
         # bezet
@@ -167,7 +170,7 @@ sub processStepFormData {
             $self->setConfigurationData( status => 'created_temp_account' );
         }
 
-        if ( $self->get('requireEmailValidation') ) {
+        if ( $sendValidationMail ) {
             $self->sendConfirmationMail( $user );
         }
         else {
