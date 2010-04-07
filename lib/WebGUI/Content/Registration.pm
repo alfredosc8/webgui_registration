@@ -11,20 +11,30 @@ sub handler {
     my $registrationId = $session->form->process( 'registrationId' );
     my $output;
 
+
+    $session->log->warn( $session->asset );
+
     my $system = $session->form->process( 'registration' );
     $system = 'register' if $system eq 'registration';
 
+    my $asset;
     my $triggerUrls = decode_json( $session->setting->get( 'registrationUrlTriggers' ) || '{}' );
 
     if ( isIn( $session->url->getRequestedUrl, keys %{ $triggerUrls } ) && !$system ) {
         $system         = 'register';
         $registrationId = $triggerUrls->{ $session->url->getRequestedUrl };
     }
-
+    elsif ($registrationId) {
+        $asset = eval { WebGUI::Asset->newByUrl( $session, $session->url->getRequestedUrl ) };
+        unless ($@) {
+            $session->asset( $asset );
+        };
+    }
+        
     $system = 'www_'.$system;
 
     if ( $system =~ /^[\w_]+$/ && ( my $sub = __PACKAGE__->can( $system ) ) ) {
-        $output = $sub->( $session, $registrationId );
+        $output = $sub->( $session, $registrationId, $asset );
     }
     else {
         $session->errorHandler->warn("Invalid system [$system]");

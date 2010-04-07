@@ -110,6 +110,10 @@ sub crud_definition {
         label       => 'Style',
         namespace   => 'style',
     };
+    $definition->{ properties }->{ autoOverrideStyle                } = {
+        fieldType   => 'yesNo',
+        label       => 'Use asset style?',
+    };
     $definition->{ properties }->{ stepTemplateId                   } = {
         fieldType   => 'template', 
         label       => 'Step Template',
@@ -482,8 +486,12 @@ sub addUrlTrigger {
 sub processStyle {
     my $self    = shift;
     my $content = shift;
+    my $asset   = $self->session->asset;
 
-    my $styleTemplateId = $self->get('styleTemplateId');
+    my $styleTemplateId = 
+        $self->get('autoOverrideStyle') && $asset   ? $asset->get('styleTemplateId')
+                                                    : $self->get('styleTemplateId')
+                                                    ;
 
     return $self->session->style->process( $content, $styleTemplateId );
 }
