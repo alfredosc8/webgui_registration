@@ -24,12 +24,6 @@ sub crud_definition {
     my $session     = shift;
     my $definition  = $class->SUPER::crud_definition( $session );
 
-    $definition->{ dynamic }->{ createAccountTemplateId } = {
-        fieldType   => 'template',
-        label       => 'Template',
-        tab         => 'properties',
-        namespace   => 'Registration/Step/CreateAccount',
-    };
     $definition->{ dynamic }->{ requireEmailValidation } = {
         fieldType   => 'yesNo',
         label       => 'Always validate email?',
