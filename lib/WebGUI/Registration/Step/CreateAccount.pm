@@ -100,12 +100,43 @@ sub processStepFormData {
     my $requestedUser   = WebGUI::User->newByUsername( $session, $form->get('username') );
     my $emailUser       = WebGUI::User->newByEmail( $session, $form->get('email') );
 
-    if ( $requestedUser && $requestedUser->isEnabled ) {
+    if    ( !$emailUser && !$requestedUser ) {
+        # ok!
+    }
+    elsif ( $emailUser &&  $emailUser->isEnabled && !$requestedUser ) {
+        # reminder
+        $self->pushError( $self->remindPassword );
+    }
+    elsif ( $emailUser && !$emailUser->isEnabled && !$requestedUser ) {
+        # ok! newsletter/crm user
+    }
+    elsif ( !$emailUser && $requestedUser ) {
+        # bezet
         $self->pushError( 'The requested username is already in use by another user' );
-    };
-    if ( $emailUser && $emailUser->isEnabled ) {
-        $self->pushError( 'The requested email address is already in use by another account.' );
-    };
+    }
+    elsif ( $emailUser && $requestedUser && $emailUser->userId eq $requestedUser->userId && $requestedUser->isEnabled ) {
+        # reminder
+        $self->pushError( $self->remindPassword );
+    }
+    elsif ( $emailUser && $requestedUser && $emailUser->userId eq $requestedUser->userId && !$requestedUser->isEnabled ) {
+        # deactivated
+        # Wat melden we hier?
+    }
+    elsif ( $emailUser && $requestedUser && $emailUser->userId ne $requestedUser->userId ) {
+        # reminder voor account bij email adres
+        $self->pushError( $self->remindPassword );
+    }
+    else {
+        # Onvoorzien!!!
+    }
+
+
+#    if ( $requestedUser && $requestedUser->isEnabled ) {
+#        $self->pushError( 'The requested username is already in use by another user' );
+#    }
+#    if ( $emailUser && $emailUser->isEnabled ) {
+#        $self->pushError( 'The requested email address is already in use by another account.' );
+#    };
     if ( $form->get('identifier') ne $form->get('identifierConfirm') ) {
         $self->pushError( 'The password you entered doesn\'t match its confirmation' );
     };
@@ -267,6 +298,24 @@ sub www_confirmEmail {
     $instance->setStepData( $self->getId, $data );
 
     return $self->registration->www_view;
+}
+
+#-------------------------------------------------------------------
+sub remindPassword {
+    my $self = shift;
+
+    my $url = $self->registration->get('url');
+    $self->session->scratch->set( 'redirectAfterLogin', $url );
+
+    my $string = 
+          qq{An account with the username and/or emailadress already exists on this site. }
+        . qq{ Click <a href="%s">here</a> to reset your password" };
+
+    my $output = sprintf $string, "/$url?op=auth;method=recoverPassword";
+
+    return $output;
+    return $self->processStyle( $output ); 
+
 }
 
 1;
