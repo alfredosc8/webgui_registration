@@ -853,7 +853,8 @@ sub www_manage {
 sub www_noValidUser {
     my $self    = shift;
     my $session = $self->session;
-    
+    my $i18n    = WebGUI::International->new( $session, 'Registration' );
+
 ####    if ($self->hasValidUser || $self->user->userId eq '1') {
 #### TODO: Gaat dit goed?
     if ($self->hasValidUser || $self->session->user->isVisitor) {
@@ -861,8 +862,7 @@ sub www_noValidUser {
         $self->instance->update({ status => 'incomplete' });
     }
     else {
-        #### TODO: Dit niet hardcoden.
-        return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
+        return $self->processStyle( $i18n->get('has completed') );
     }
 
     # If user is Visitor he'll have to log in. Make sure that he's redirected to the correct place after doing
@@ -874,22 +874,22 @@ sub www_noValidUser {
     my $var;
     $var->{ login_button            } =
         WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                    } )
-        . WebGUI::Form::submit($session, {                      value => 'Inloggen'                 } )
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'login'                        } )
+        . WebGUI::Form::submit($session, {                      value => $i18n->get('log in')           } )
         . WebGUI::Form::formFooter($session);
     $var->{ login_url               } = $session->url->page('func=login');
     $var->{ createAccount_button    } =
         WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'createAccount'            } )
-        . WebGUI::Form::submit($session, {                      value => 'Account aanmaken'         } )
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'createAccount'                } )
+        . WebGUI::Form::submit($session, {                      value => $i18n->get('create account')   } )
         . WebGUI::Form::formFooter($session);
     $var->{ createAccount_url       } = $session->url->page('func=createAccount');
 
 #### TODO: Kan dit kan weg?...
     $var->{ proceed_button          } =
         WebGUI::Form::formHeader($session)
-        . WebGUI::Form::hidden($session, { name => 'func',      value => 'viewStep'   } )
-        . WebGUI::Form::submit($session, {                      value => 'Volgende stap'            } )
+        . WebGUI::Form::hidden($session, { name => 'func',      value => 'viewStep'                 } )
+        . WebGUI::Form::submit($session, {                      value => $i18n->get('next step')    } )
         . WebGUI::Form::formFooter($session);
     $var->{ proceed_url             } = $session->url->page('func=viewStep');
     $var->{ isVisitor               } = ($session->user->userId eq '1');
@@ -969,10 +969,11 @@ sub www_view {
 
 #-------------------------------------------------------------------
 sub www_registrationComplete {
-    my $self = shift;
-
-    #### TODO: gehardcode
-    return $self->processStyle('U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.');
+    my $self    = shift;
+    my $session = $self->session;
+    my $i18n    = WebGUI::International->new( $session, 'Registration' );
+    
+    return $self->processStyle( $i18n->get('has completed') );
 }
 
 1;

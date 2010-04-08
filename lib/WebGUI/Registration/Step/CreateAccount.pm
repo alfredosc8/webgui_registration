@@ -96,6 +96,7 @@ sub processStepFormData {
     my $self    = shift;
     my $session = $self->session;
     my $form    = $session->form;
+    my $i18n    = WebGUI::International( $session, 'Step_CreateAccount' );
 
     my @required = 
         qw{ username email identifier identifierConfirm captcha }, 
@@ -104,7 +105,7 @@ sub processStepFormData {
                 @{ WebGUI::ProfileField->getRegistrationFields( $session ) }
     ;
     foreach ( @required ) {
-        $self->pushError( "$_ is required" ) unless $form->get( $_ );
+        $self->pushError( "$_ " . $i18n->get('is required') ) unless $form->get( $_ );
     }
     
     my $requestedUser   = WebGUI::User->newByUsername( $session, $form->get('username') );
@@ -125,7 +126,7 @@ sub processStepFormData {
     }
     elsif ( !$emailUser && $requestedUser ) {
         # bezet
-        $self->pushError( 'The requested username is already in use by another user' );
+        $self->pushError( $i18n->get('username taken') );
     }
     elsif ( $emailUser && $requestedUser && $emailUser->userId eq $requestedUser->userId && $requestedUser->isEnabled ) {
         # reminder
@@ -133,7 +134,7 @@ sub processStepFormData {
     }
     elsif ( $emailUser && $requestedUser && $emailUser->userId eq $requestedUser->userId && !$requestedUser->isEnabled ) {
         # deactivated
-        # Wat melden we hier?
+        $self->pushError( $i18n->get('username taken') );
     }
     elsif ( $emailUser && $requestedUser && $emailUser->userId ne $requestedUser->userId ) {
         # reminder voor account bij email adres
@@ -143,18 +144,11 @@ sub processStepFormData {
         # Onvoorzien!!!
     }
 
-
-#    if ( $requestedUser && $requestedUser->isEnabled ) {
-#        $self->pushError( 'The requested username is already in use by another user' );
-#    }
-#    if ( $emailUser && $emailUser->isEnabled ) {
-#        $self->pushError( 'The requested email address is already in use by another account.' );
-#    };
     if ( $form->get('identifier') ne $form->get('identifierConfirm') ) {
-        $self->pushError( 'The password you entered doesn\'t match its confirmation' );
+        $self->pushError( $i18n->get('pw doesnt match') );
     };
     unless ( $form->captcha( 'captcha' ) ) {
-        $self->pushError( 'The captcha you entered does not match the image' );
+        $self->pushError( $i18n->get('captcha wrong') );
     };
 
     unless ( @{$self->error} ) {
@@ -201,6 +195,7 @@ sub getViewVars {
     my $self    = shift;
     my $session = $self->session;
     my $form    = $session->form;
+    my $i18n    = WebGUI::International->new( $session );
 
     my $var = $self->SUPER::getViewVars;
 
@@ -212,22 +207,22 @@ sub getViewVars {
 
         my @fields;
         push @fields, {
-            field_label         => 'Username',
+            field_label         => $i18n->get( 50 ),
             field_formElement   => WebGUI::Form::text( $session, { name=>'username', value => $form->get('username') } ),
             field_isRequired    => 1,
         };
         push @fields, {
-            field_label         => 'Password',
+            field_label         => $i18n->get( 51 ),
             field_formElement   => WebGUI::Form::password( $session, { name=>'identifier', value => $form->get('identifier') } ),
             field_isRequired    => 1,
         };
         push @fields, {
-            field_label         => 'Password confirmation',
+            field_label         => $i18n->get( 2, 'AuthWebGUI' ),
             field_formElement   => WebGUI::Form::password( $session, { name=>'identifierConfirm', value => $form->get('identifierConfirm') } ),
             field_isRequired    => 1,
         };
         push @fields, {
-            field_label         => 'Email',
+            field_label         => $i18n->get( 56 ),
             field_formElement   => WebGUI::Form::email( $session, { name=>'email', value => $form->get('email') } ),
             field_isRequired    => 1,
         };
@@ -243,7 +238,7 @@ sub getViewVars {
         }
 
         push @fields, {
-            field_label         => 'Captcha',
+            field_label         => $i18n->get( 'captcha label', 'AuthWebGUI' ),
             field_formElement   => WebGUI::Form::captcha( $session, { name=>'captcha' } ),
             field_isRequired    => 1,
         };
@@ -318,13 +313,12 @@ sub www_confirmEmail {
 #-------------------------------------------------------------------
 sub remindPassword {
     my $self = shift;
+    my $i18n = WebGUI::International->new( $self->session, 'Step_CreateAccount' );
 
     my $url = $self->registration->get('url');
     $self->session->scratch->set( 'redirectAfterLogin', $url );
 
-    my $string = 
-          qq{An account with the username and/or emailadress already exists on this site. }
-        . qq{ Click <a href="%s">here</a> to reset your password" };
+    my $string = $i18n->get( 'account exists' ); 
 
     my $output = sprintf $string, "/$url?op=auth;method=recoverPassword";
 
