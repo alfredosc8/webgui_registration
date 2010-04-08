@@ -13,8 +13,6 @@ sub handler {
     my $system  = $session->form->process( 'registration' );
     $system     = 'register' if $system eq 'registration';
 
-    return unless $system;
-
     my $registrationId  = $session->form->process( 'registrationId' );
     my $triggerUrls     = decode_json( $session->setting->get( 'registrationUrlTriggers' ) || '{}' );
 
@@ -22,11 +20,14 @@ sub handler {
         $system         = 'register';
         $registrationId = $triggerUrls->{ $session->url->getRequestedUrl };
     }
-    else {
+    elsif ( $system ) {
         my $asset = eval { WebGUI::Asset->newByUrl( $session, $session->url->getRequestedUrl ) };
         unless ($@) {
             $session->asset( $asset );
         };
+    }
+    else {
+        return;
     }
         
     $system = 'www_'.$system;
