@@ -25,10 +25,16 @@ sub crud_definition {
     my $definition  = $class->SUPER::crud_definition( $session );
 
     $definition->{ dynamic }->{ requireEmailValidation } = {
-        fieldType   => 'yesNo',
-        label       => 'Always validate email?',
-        tab         => 'properties',
-        default     => 1,
+        fieldType       => 'yesNo',
+        label           => 'Always validate email?',
+        tab             => 'properties',
+        defaultValue    => 1,
+    };
+    $definition->{ dynamic }->{ waitForEmailConfirmationMessage } = {
+        fieldType       => 'HTMLArea',
+        label           => 'Wait for email confirmation message',
+        tab             => 'messages',
+        defaultValue    => 'You have been sent an email to confirm your email-address.',
     };
     return $definition;
 }
@@ -189,8 +195,8 @@ sub getViewVars {
     my $var = $self->SUPER::getViewVars;
 
     if ( $self->getConfigurationData->{ status } eq 'wait_for_confirm' ) {
-        $var->{ comment } =
-            'Er is een email gestuurd naar het doro u opgegeven emailadres ter controle. Klik op de link in het mailtje om verdre te gaan';
+        $var->{ comment     } = $self->get( 'waitForEmailConfirmationMessage' );
+        $var->{ canSubmit   } = 0;
     }
     else {
 

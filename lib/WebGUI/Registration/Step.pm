@@ -244,7 +244,7 @@ sub getViewVars {
     $var->{ form_footer     } = WebGUI::Form::formFooter($self->session);
     $var->{ field_loop      } = [ ];
     $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
-    
+    $var->{ canSubmit       } = 1;
     return $var;
 }
 
