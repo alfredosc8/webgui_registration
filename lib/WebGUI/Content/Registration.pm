@@ -8,24 +8,22 @@ use JSON;
 
 sub handler {
     my $session = shift;
-    my $registrationId = $session->form->process( 'registrationId' );
     my $output;
 
+    my $system  = $session->form->process( 'registration' );
+    $system     = 'register' if $system eq 'registration';
 
-    $session->log->warn( $session->asset );
+    return unless $system;
 
-    my $system = $session->form->process( 'registration' );
-    $system = 'register' if $system eq 'registration';
-
-    my $asset;
-    my $triggerUrls = decode_json( $session->setting->get( 'registrationUrlTriggers' ) || '{}' );
+    my $registrationId  = $session->form->process( 'registrationId' );
+    my $triggerUrls     = decode_json( $session->setting->get( 'registrationUrlTriggers' ) || '{}' );
 
     if ( isIn( $session->url->getRequestedUrl, keys %{ $triggerUrls } ) && !$system ) {
         $system         = 'register';
         $registrationId = $triggerUrls->{ $session->url->getRequestedUrl };
     }
-    elsif ($registrationId) {
-        $asset = eval { WebGUI::Asset->newByUrl( $session, $session->url->getRequestedUrl ) };
+    else {
+        my $asset = eval { WebGUI::Asset->newByUrl( $session, $session->url->getRequestedUrl ) };
         unless ($@) {
             $session->asset( $asset );
         };
@@ -34,7 +32,7 @@ sub handler {
     $system = 'www_'.$system;
 
     if ( $system =~ /^[\w_]+$/ && ( my $sub = __PACKAGE__->can( $system ) ) ) {
-        $output = $sub->( $session, $registrationId, $asset );
+        $output = $sub->( $session, $registrationId );
     }
     else {
         $session->errorHandler->warn("Invalid system [$system]");
