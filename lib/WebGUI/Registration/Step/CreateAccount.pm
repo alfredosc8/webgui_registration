@@ -36,6 +36,16 @@ sub crud_definition {
         tab             => 'messages',
         defaultValue    => 'You have been sent an email to confirm your email-address.',
     };
+    $definition->{ dynamic }->{ emailConfirmationSubject } = {
+        fieldType       => 'text',
+        label           => 'Email confirmation subject',
+    };
+    $definition->{ dynamic }->{ emailConfirmationBodyTemplateId } = {
+        fieldType       => 'template',
+        label           => 'Email confirmation body',
+        namespace       => 'RegStep/CreateAccount/ConfirmEmail',
+    };
+
     return $definition;
 }
 
@@ -245,30 +255,32 @@ sub getViewVars {
 
 #-------------------------------------------------------------------
 sub sendConfirmationMail {
-    my $self = shift;
-    my $user = shift;
+    my $self    = shift;
+    my $user    = shift;
     my $session = $self->session;
+    my $url     = $session->url;
 
-    my $code = $self->session->id->generate;
+    my $code    = $self->session->id->generate;
     my $confirm = $self->registration->instance->getId . $code;
 
     $self->setConfigurationData( code => $code );
 
-    my $body = $session->url->getSiteURL . "?registration=step;stepId=".$self->getId.";func=confirmEmail;confirmation=$confirm";
+    my $body = WebGUI::Asset::Template->new( $session, $self->get('emailConfirmationBodyTemplateId') );
+    $session->log->fatal( 'cannot instanciate confirmation email body template' ) unless $body;
 
-    use Data::Dumper;
-    $session->log->warn( Dumper {
-        from    => 'noreply@oqapi.nl',
-        to      => $user->profileField('email'),
-        subject => 'Confirm',
-    } );
+    my $var = {
+        confirmEmail_url => 
+            $url->getSiteURL 
+            . '/' 
+            . $url->getRequestedUrl 
+            . "?registration=step;stepId=".$self->getId.";func=confirmEmail;confirmation=$confirm",
+    };
 
     my $mail = WebGUI::Mail::Send->create( $session, {
-        from    => 'noreply@oqapi.nl',
         to      => $user->profileField('email'),
-        subject => 'Confirm',
+        subject => $self->get('emailConfirmationSubject'),
     } );
-    $mail->addText( $body );
+    $mail->addText( $body->process( $var ) );
     $mail->send;
 
     $self->setConfigurationData( status => 'wait_for_confirm' );
