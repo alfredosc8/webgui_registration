@@ -96,7 +96,7 @@ sub processStepFormData {
     my $self    = shift;
     my $session = $self->session;
     my $form    = $session->form;
-    my $i18n    = WebGUI::International( $session, 'Step_CreateAccount' );
+    my $i18n    = WebGUI::International->new( $session, 'Step_CreateAccount' );
 
     my @required = 
         qw{ username email identifier identifierConfirm captcha }, 
