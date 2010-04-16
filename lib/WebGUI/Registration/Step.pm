@@ -94,6 +94,11 @@ sub getConfigurationData {
 }
 
 #-------------------------------------------------------------------
+sub getReturnUrl { 
+    return;
+}
+
+#-------------------------------------------------------------------
 sub getExportVariable {
     my $self    = shift;
     my $key     = shift;

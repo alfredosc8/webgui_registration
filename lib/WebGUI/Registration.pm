@@ -696,8 +696,16 @@ sub www_completeRegistration {
         $self->requestApproval;
     }
 
+    my @returnUrls =
+        grep    { $_ } 
+        map     { $_->getReturnUrl } 
+                @{ $self->getSteps };
+    
+
     #### TODO: Ook nog een autoapprove template klussen en die in bovenstaande sub stoppen...
-    my $var = {};
+    my $var = {
+        return_url  => $returnUrls[-1],
+    };
     my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
     return $self->processStyle( $template->process($var) )
 }
