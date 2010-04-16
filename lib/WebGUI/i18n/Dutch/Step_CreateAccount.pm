@@ -2,7 +2,7 @@ package WebGUI::i18n::Dutch::Step_CreateAccount;
 
 use strict;
 
-our %I18N = (
+our $I18N = {
     'is required' => {
         message => 'is verplicht.',
     },
@@ -22,7 +22,7 @@ our %I18N = (
     'account exists' => {
         message => 'Er bestaat al een account met deze gebruikersnaam en/of emailadres. Klik <a href="%s">hier</a> als u uw paswoord of gebruikersnaam vergeten bent.',
     },
-);
+};
 
 1;
 

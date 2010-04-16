@@ -2,7 +2,7 @@ package WebGUI::i18n::English::Registration;
 
 use strict;
 
-our %I18N = (
+our $I18N = {
     'has completed' => {
         message     => 'U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.',
         lastUpDated => 0,
@@ -17,7 +17,7 @@ our %I18N = (
         message     => 'Volgende stap',
     },
 
-);
+};
 
 1;
 

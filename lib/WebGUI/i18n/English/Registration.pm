@@ -2,7 +2,7 @@ package WebGUI::i18n::English::Registration;
 
 use strict;
 
-our %I18N = (
+our $I18N = {
     'has completed' => {
         message     => "You've already completed this registration or your data still has to be approved.",
         lastUpDated => 0,
@@ -18,7 +18,7 @@ our %I18N = (
     },
 
 
-);
+};
 
 1;
 

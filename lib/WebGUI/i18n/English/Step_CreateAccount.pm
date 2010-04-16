@@ -2,7 +2,7 @@ package WebGUI::i18n::English::Step_CreateAccount;
 
 use strict;
 
-our %I18N = (
+our $I18N = {
     'is required' => {
         message => 'is required.',
     },
@@ -22,7 +22,7 @@ our %I18N = (
     'account exists' => {
         message => 'An account with the username and/or emailadress already exists on this site. Click <a href="%s">here</a> to reset your password',
     },
-);
+};
 
 1;
 

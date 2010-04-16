@@ -355,7 +355,9 @@ sub processStyle {
 #-------------------------------------------------------------------
 sub pushError {
     my $self            = shift;
-    my $errorMessage    = shift || return;
+    my $errorMessage    = shift;
+    
+    $self->session->log->warn( 'no error pushed!!!!' ) unless $errorMessage;
 
     push @{ $error{ id $self } }, $errorMessage;
 }

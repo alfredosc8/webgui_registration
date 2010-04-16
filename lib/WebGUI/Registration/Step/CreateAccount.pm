@@ -112,7 +112,6 @@ sub processStepFormData {
     my $emailUser       = WebGUI::User->newByEmail( $session, $form->get('email') );
 
     my $sendValidationMail = $self->get('requireEmailValidation');
-
     if    ( !$emailUser && !$requestedUser ) {
         # ok!
     }
