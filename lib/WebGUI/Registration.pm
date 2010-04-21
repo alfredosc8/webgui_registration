@@ -672,6 +672,24 @@ sub www_addStep {
     
 ####    adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
 }
+
+#-------------------------------------------------------------------
+sub www_cancelRegistration {
+    my $self        = shift;
+    my $instance    = $self->instance;
+
+    if ( $instance->get('status') eq 'incomplete' ) {
+        foreach ( @{ $self->getSteps } ) {
+            $_->onCancelInstance;
+        }
+        $self->instance->delete;
+
+        $instance{ id $self } = undef;
+    }
+
+    return $self->www_view;
+}
+
 #-------------------------------------------------------------------
 sub www_completeRegistration {
     my $self    = shift;

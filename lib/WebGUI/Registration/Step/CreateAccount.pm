@@ -103,6 +103,11 @@ sub isComplete {
 #    });
 #}
 
+sub onCancelInstance {
+    my $self = shift;
+
+    $self->registration->instance->user->delete;
+}
 
 #-------------------------------------------------------------------
 sub processStepFormData {

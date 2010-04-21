@@ -307,6 +307,11 @@ sub registration {
 }
 
 #-------------------------------------------------------------------
+sub onCancelInstance {
+    return;
+}
+
+#-------------------------------------------------------------------
 sub onDeleteAccount {
     my $self    = shift;
     my $doit    = shift;
