@@ -4,7 +4,7 @@ use strict;
 
 our $I18N = {
     'has completed' => {
-        message     => 'U heeft al een website aangemaakt of uw gegevens worden nog gecontroleerd.',
+        message     => 'U bent al geregistreerd.',
         lastUpDated => 0,
     },
     'log in' => {

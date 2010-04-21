@@ -4,7 +4,7 @@ use strict;
 
 our $I18N = {
     'has completed' => {
-        message     => "You've already completed this registration or your data still has to be approved.",
+        message     => "You've already registered.",
         lastUpDated => 0,
     },
     'log in' => {
