@@ -45,6 +45,19 @@ sub crud_definition {
         label           => 'Email confirmation body',
         namespace       => 'RegStep/CreateAccount/ConfirmEmail',
     };
+    $definition->{ dynamic }->{ sendWelcomeMessage } = {
+        fieldType       => 'yesNo',
+        label           => 'Send welcome message',
+    };
+    $definition->{ dynamic }->{ welcomeMessage } = {
+        fieldType       => 'HTMLArea',
+        label           => 'Welcome message',
+    };
+    $definition->{ dynamic }->{ welcomeMessageTemplateId } = {
+        fieldType       => 'template',
+        label           => 'Welcome message template',
+        namespace       => 'Step/CreateAccount/Welcome',
+    };
 
     return $definition;
 }
@@ -171,6 +184,8 @@ sub processStepFormData {
             } );
 
             $self->setConfigurationData( status => 'created_temp_account' );
+
+            $self->sendWelcomeMessage( $user->userId, $form->get('username'), $form->get('identifier') );
         }
 
         if ( $sendValidationMail ) {
@@ -324,6 +339,42 @@ sub remindPassword {
     return $output;
     return $self->processStyle( $output ); 
 
+}
+
+sub sendWelcomeMessage {
+    my $self        = shift;
+    my $userId      = shift;
+    my $username    = shift;
+    my $password    = shift;
+    my $session     = $self->session;
+    my $i18n        = WebGUI::International->new( $session );
+    
+	if ( $self->get('sendWelcomeMessage')){
+        my $var = {
+            welcomeMessage      => $self->get('welcomeMessage'),
+            newUser_username    => $username,
+            newUser_password    => $password,
+        };
+
+        my $template = WebGUI::Asset::Template->new( $session, $self->get('welcomeMessageTemplateId') );
+        if (!$template) {
+            $session->log->error( 'Cannot instanciate welcome message template for create account step' );
+            return;
+        }
+        
+        my $message = $template->process($var);
+
+        WebGUI::Macro::process($self->session,\$message);
+
+        WebGUI::Inbox->new( $session )->addMessage( {
+            message => $message,
+			subject	=> $i18n->get( 870 ),
+			userId	=> $userId,
+            status  => 'completed',
+		} );
+	}
+
+    return;
 }
 
 1;
