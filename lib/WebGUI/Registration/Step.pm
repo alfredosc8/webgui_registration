@@ -250,6 +250,8 @@ sub getViewVars {
     $var->{ field_loop      } = [ ];
     $var->{ error_loop      } = [ map { {error_message => $_} } @{ $self->error } ];
     $var->{ canSubmit       } = 1;
+    $var->{ cancel_url      } =
+        $self->session->url->page( "registration=register;func=cancelRegistration;registrationId=$registrationId" );
     return $var;
 }
 
