@@ -7,10 +7,12 @@ use Carp qw{ cluck croak };
 use Data::Dump 'pp';
 use base qw{ WebGUI::Crud };
 
+#----------------------------------------------------------------------------
 sub adminConsole {
     return WebGUI::Registration::Admin::adminConsole( @_ );
 }
 
+#----------------------------------------------------------------------------
 sub create {
     my $class   = shift;
     my $session = shift;
@@ -30,7 +32,6 @@ sub create {
 
     return $self;
 }
-
 
 #----------------------------------------------------------------------------
 sub crud_definition {
