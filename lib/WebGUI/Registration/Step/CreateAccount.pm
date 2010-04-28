@@ -16,6 +16,10 @@ sub apply {
 
     $user->enable;
     $session->user( { userId => $user->userId } );
+
+    $self->setConfigurationData( accountStatus => 'enabled' );
+
+    return;
 }
 
 #-------------------------------------------------------------------
@@ -103,10 +107,22 @@ sub isComplete {
 #    });
 #}
 
+#-------------------------------------------------------------------
 sub onCancelInstance {
     my $self = shift;
+    my $session = $self->session;
+    my $user = $self->registration->instance->user;
+
+    # For some reason isAdmin doesn't work correctly...
+    return if $user->getId eq '3' || $user->getId eq '1';
+
+    # Don't delete accounts that are already activated.
+    my $status = $self->getConfigurationData->{ accountStatus };
+    return if !$status || $status eq 'enabled';
 
     $self->registration->instance->user->delete;
+
+    return;
 }
 
 #-------------------------------------------------------------------
@@ -188,7 +204,8 @@ sub processStepFormData {
                 identifier => $auth->hashPassword( $form->get('identifier') ) 
             } );
 
-            $self->setConfigurationData( status => 'created_temp_account' );
+            $self->setConfigurationData( status => 'created_temp_account'       );
+            $self->setConfigurationData( accountStatus => 'created_disabled'    );
 
             $self->sendWelcomeMessage( $user->userId, $form->get('username'), $form->get('identifier') );
         }
