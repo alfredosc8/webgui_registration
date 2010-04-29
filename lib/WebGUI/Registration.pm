@@ -416,8 +416,8 @@ sub getInstance {
     }
     else {
         $instance =
-               WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
-            || WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
+               WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
+            || WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
             || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
         ;
     }
@@ -425,6 +425,7 @@ sub getInstance {
     return $instance;
 }
 
+#-------------------------------------------------------------------
 sub instance {
     my $self = shift;
 

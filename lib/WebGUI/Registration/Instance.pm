@@ -182,8 +182,15 @@ sub syncUserToSession {
         && $self->hasAutoAccount                            # Only sync if the account tied to the instance is automatically generated
         && $session->user->userId ne $self->user->userId    # Make sure we don't accidentally delete the attached autoAccount
     ) {
+        # Delete auto account
         $self->user->delete;
-        $self->update( { userId => $self->session->user->userId } );
+
+        # Tie this instance to the current user. Remove the session coupling to avoid running into synchronisation
+        # problems which can cause actions to be performed on the wrong user. 
+        $self->update( { 
+            userId      => $self->session->user->userId,
+            sessionId   => undef, 
+        } );
     }
 
     return;
