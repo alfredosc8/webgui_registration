@@ -17,7 +17,11 @@ sub apply {
     $user->enable;
     $session->user( { userId => $user->userId } );
 
-    $self->setConfigurationData( accountStatus => 'enabled' );
+    my $data = $self->getConfigurationData;
+    $self->sendWelcomeMessage( $user->userId, $data->{ username }, $data->{ identifier } );
+
+    $self->setConfigurationData( accountStatus  => 'enabled' );
+    $self->setConfigurationData( identifier     => ''        );
 
     return;
 }
@@ -204,10 +208,10 @@ sub processStepFormData {
                 identifier => $auth->hashPassword( $form->get('identifier') ) 
             } );
 
-            $self->setConfigurationData( status => 'created_temp_account'       );
-            $self->setConfigurationData( accountStatus => 'created_disabled'    );
-
-            $self->sendWelcomeMessage( $user->userId, $form->get('username'), $form->get('identifier') );
+            $self->setConfigurationData( status         => 'created_temp_account'   );
+            $self->setConfigurationData( accountStatus  => 'created_disabled'       );
+            $self->setConfigurationData( username       => $form->get('username')   );
+            $self->setConfigurationData( identifier     => $form->get('identifier') );
         }
 
         if ( $sendValidationMail ) {
