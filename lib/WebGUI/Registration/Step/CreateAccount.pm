@@ -14,6 +14,8 @@ sub apply {
     my $session = $self->session;
     my $user    = $self->registration->instance->user;
 
+    return unless $session->user->isVisitor;
+
     $user->enable;
     $session->user( { userId => $user->userId } );
 
