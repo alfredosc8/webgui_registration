@@ -166,6 +166,12 @@ sub crud_definition {
         label               => 'Auto-approval',
         defaultValue        => 1,
     };
+    $definition->{ properties }->{ applyDuringConfirm               } = {
+        fieldType           => 'yesNo',
+        label               => 'Apply steps during confirmation',
+        defaultValue        => 0,
+        subText             => 'Only applicable when Auto-approval is yes',
+    };    
     $definition->{ properties }->{ deleteInstanceAfterApproval      } = {
         fieldType           => 'yesNo',
         label               => 'Delete instance after approval?',
@@ -384,7 +390,7 @@ sub hasValidUser {
 
     # Site status checken
     # ie. not pending or complete
-    return 0 unless $self->instance->get('status') eq 'incomplete';
+#    return 0 unless $self->instance->get('status') eq 'incomplete';
 
     # If a user has been loaded into the Registration that is not a visitor, return true.
 ####    return $self->user && $self->user->userId ne '1';
@@ -406,8 +412,18 @@ sub getInstance {
     my $self    = shift;
     my $userId  = shift;
     my $session = $self->session;
+    my $scratch = $session->scratch;
 
     my $instance;
+    my $overrideId = $scratch->get( 'overrideInstanceId' );
+    if ( $overrideId ) {
+        $session->log->warn( "Using instance override id: $overrideId" );
+        $instance = WebGUI::Registration::Instance->new( $session, $overrideId );
+
+        return $instance if $instance && $instance->get('status') eq 'complete';
+        $session->log->warn( "Instance $overrideId does not have status 'complete'" );
+    }
+
     if ( $userId eq '1' ) {
         $instance =
                WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
@@ -574,18 +590,30 @@ sub www_changeStep {
 sub www_confirmRegistrationData {
     my $self    = shift;
     my $session = $self->session;
+    my $scratch = $session->scratch;
+
+    # Delete the step override since we must've completed it if we've ended up here.
+    $scratch->delete( 'overrideStepId' );
 
     # If the registration process has been completed display a message stating that.
-    return $self->www_registrationComplete if $self->registrationComplete;
+#    return $self->www_registrationComplete if $self->registrationComplete;
 
     # Check whether the user is allowed to register.
-    return $session->privilege->noAccess unless $self->hasValidUser;
+#    return $session->privilege->noAccess unless $self->hasValidUser;
 
     # If not all steps are completed yet, go to the step form
     return $self->www_viewStep unless $self->registrationStepsComplete;
 
     # Complete the registration if no confirmation is used.
     return $self->www_completeRegistration unless $self->get( 'showConfirmationScreen' );
+
+    if ( $self->get( 'applyDuringConfirm' ) ) {
+        # Make sure we're using this instance when we edit a step, since applying will change status to complete
+        # and getInstance looks for incomplete instances by default and creates new ones if none are found!!!
+        $scratch->set( 'overrideInstanceId', $self->instance->getId );
+
+        $self->instance->applySteps;
+    }
 
     my $steps           = $self->getSteps;
     my @categoryLoop    = ();
@@ -699,7 +727,7 @@ sub www_completeRegistration {
     my $userId  = $self->instance->user->userId;
 
     # If the registration process has been completed display a message stating that.
-    return $self->www_registrationComplete if $self->registrationComplete;
+#    return $self->www_registrationComplete if $self->registrationComplete;
 
     # Check whether the user is allowed to register.
     return $self->www_noValidUser unless $self->hasValidUser;
@@ -930,12 +958,15 @@ sub www_noValidUser {
 sub www_viewStep {
     my $self    = shift;
     my $session = $self->session;
-
-#    return $self->www_noValidUser unless $self->hasValidUser;
-#    $self->instance->syncUserToSession;
+    my $scratch = $session->scratch;
 
     my $output;
  
+    # Remove stale ovverideInstanceId <-- happens when users complete but not finish (not approve) their registration
+    if (!$scratch->get('overrideStepId') ) {
+        $scratch->delete( 'overrideInstanceId' );
+    }
+
     # Store passed presets
     $self->instance->processPresetsFromFormPost;
 
@@ -943,10 +974,11 @@ sub www_viewStep {
     $self->instance->syncUserToSession;
 
     # Set site status
-    $self->instance->update({ status => 'incomplete' });
+#    $self->instance->update({ status => 'incomplete' });
 
     # Get current step
     my $currentStep = $self->getCurrentStep;
+
 
     if ( defined $currentStep ) {
         $output = $currentStep->www_view;
@@ -980,10 +1012,11 @@ sub www_viewStepSave {
     # Return the step screen if an error occurred during processing.
     return $currentStep->www_view if ( @{ $currentStep->error } );
 
-    # Clear step id override flag.
-    $session->scratch->delete( 'overrideStepId' );
-
     # And return the next screen.
+    if ( $session->scratch->get( 'overrideInstanceId' ) ) {
+        return $self->www_confirmRegistrationData;
+    }
+    
     return $self->www_viewStep;
 }
 

@@ -72,6 +72,10 @@ sub crud_definition {
         serialize       => 1,
         noFormPost      => 1,
     };
+    $definition->{ properties }->{ versionTagId } = {
+        fieldType       => 'guid',
+        noFormPost      => 1,
+    };
 
     return $definition;
 }
@@ -96,8 +100,9 @@ sub newBySessionId {
 
     my $id = $class->getAllIds( $session, {
         sequenceKeyValue    => $registrationId,
-        constraints        => [ 
-            { 'sessionId=?'  => $sessionId },
+        constraints         => [ 
+            { 'sessionId=?'     => $sessionId   },
+            { 'status=?'        => 'incomplete' },
         ],
     } );
     
@@ -114,8 +119,9 @@ sub newByUserId {
 
     my $id = $class->getAllIds( $session, {
         sequenceKeyValue    => $registrationId,
-        constraints        => [ 
-            { 'userId=?'  => $userId },
+        constraints         => [ 
+            { 'userId=?'        => $userId      },
+            { 'status=?'        => 'incomplete' },
         ],
     } );
     
@@ -515,11 +521,17 @@ sub www_editSave {
     return WebGUI::Registration::Admin::www_listPendingRegistrations( $session );
 }
 
-sub approve {
+#----------------------------------------------------------------------------
+sub applySteps {
     my $self            = shift;
     my $session         = $self->session;
     my $registration    = $self->registration;
-    my $user            = $self->user;
+
+    # If we're re-applying, make sure to delete the previously applied content.
+    if ( $self->get('versionTagId') ) {
+        my $previousVersionTag = WebGUI::VersionTag->new( $session, $self->get('versionTagId') );
+        $previousVersionTag->rollback if $previousVersionTag;
+    }
 
     # Save the current version tag so that we can the user to his current tag after the application process.
     my $currentVersionTag   = WebGUI::VersionTag->getWorking($session, 1);
@@ -541,13 +553,29 @@ sub approve {
     # Commit the tag if it contains any content, otherwise delete it.
     if ( $tempVersionTag->getAssetCount > 0 ) {
         $tempVersionTag->commit;
+        $self->update( { versionTagId   => $tempVersionTag->getId } );
     }
     else {
         $tempVersionTag->rollback;
+        $self->update( { versionTagId   => undef } );
     }
 
     # Return the user to the version tag he was in.
     $currentVersionTag->setWorking if (defined $currentVersionTag);
+
+    $self->update( { status => 'complete' } );
+
+    return;
+}
+
+#----------------------------------------------------------------------------
+sub approve {
+    my $self            = shift;
+    my $session         = $self->session;
+    my $registration    = $self->registration;
+    my $user            = $self->user;
+
+    $self->applySteps;
     
     # Run workflow on account creation.
     if ($registration->get('newAccountWorkflowId')) {
