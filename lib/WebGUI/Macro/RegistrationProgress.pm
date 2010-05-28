@@ -14,7 +14,6 @@ sub process {
     return 'Invalid registrationId' unless $registration;
 
     my $status = $registration->getStepStatus;
-$session->errorHandler->warn(Dumper($status));  
 
     my $var;
     $var->{ step_loop } = $status;
