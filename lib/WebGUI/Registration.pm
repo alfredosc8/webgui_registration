@@ -417,11 +417,9 @@ sub getInstance {
     my $instance;
     my $overrideId = $scratch->get( 'overrideInstanceId' );
     if ( $overrideId ) {
-        $session->log->warn( "Using instance override id: $overrideId" );
         $instance = WebGUI::Registration::Instance->new( $session, $overrideId );
 
         return $instance if $instance && $instance->get('status') eq 'complete';
-        $session->log->warn( "Instance $overrideId does not have status 'complete'" );
     }
 
     if ( $userId eq '1' ) {
