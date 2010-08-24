@@ -12,6 +12,8 @@ use Data::Dumper;
 use WebGUI::Utility;
 use Tie::IxHash;
 use WebGUI::Registration::Admin;
+use WebGUI::Registration::Instance;
+use WebGUI::Registration::Step;
 
 private instance           => my %instance;
 
