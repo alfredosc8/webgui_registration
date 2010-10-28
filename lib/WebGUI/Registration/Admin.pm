@@ -4,8 +4,6 @@ use strict;
 use WebGUI::Registration;
 use WebGUI::AdminConsole;
 
-use Data::Dumper;
-
 #-------------------------------------------------------------------
 sub adminConsole {
     my $session = shift;

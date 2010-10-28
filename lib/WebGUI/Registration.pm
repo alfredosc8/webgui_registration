@@ -8,7 +8,6 @@ use List::Util qw{ first };
 use List::MoreUtils qw{ any };
 use WebGUI::Pluggable;
 use JSON qw{ encode_json decode_json };
-use Data::Dumper;
 use WebGUI::Utility;
 use Tie::IxHash;
 use WebGUI::Registration::Admin;

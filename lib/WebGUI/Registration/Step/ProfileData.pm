@@ -2,7 +2,6 @@ package WebGUI::Registration::Step::ProfileData;
 
 use strict;
 
-use Data::Dumper;
 use List::Util qw{ first };
 
 use base qw{ WebGUI::Registration::Step };

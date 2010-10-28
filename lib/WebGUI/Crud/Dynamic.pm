@@ -6,7 +6,6 @@ use Carp;
 use Clone qw{ clone };
 use Class::InsideOut qw{ :std };
 
-use Data::Dumper;
 use base qw{ WebGUI::Crud };
 
 private     dynamicProperties => my %dynamicProperties;

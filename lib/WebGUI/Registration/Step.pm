@@ -8,8 +8,6 @@ use WebGUI::Registration::Admin;
 use JSON;
 use Carp;
 
-use Data::Dumper;
-
 private  registration   => my %registration;
 public   data           => my %data;
 readonly error          => my %error;

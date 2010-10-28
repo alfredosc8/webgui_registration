@@ -7,8 +7,6 @@ use WebGUI::Group;
 use WebGUI::Asset;
 use WebGUI::Keyword;
 
-use Data::Dumper;
-
 use base qw{ WebGUI::Registration::Step };
 
 #-------------------------------------------------------------------

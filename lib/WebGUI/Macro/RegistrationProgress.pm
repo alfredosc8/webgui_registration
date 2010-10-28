@@ -4,7 +4,6 @@ use strict;
 
 use WebGUI::Registration;
 use WebGUI::Asset::Template;
-use Data::Dumper;
 
 sub process {
     my $session         = shift;
