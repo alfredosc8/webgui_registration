@@ -1,7 +1,7 @@
 package WebGUI::Registration::Step::Homepage;
 
 use strict;
-use Data::Dumper;
+
 use base qw{ WebGUI::Registration::Step };
 
 #-------------------------------------------------------------------

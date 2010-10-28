@@ -2,7 +2,6 @@ package WebGUI::Registration::Step::CreateAccount;
 
 use strict;
 
-use Data::Dumper;
 use List::Util qw{ first };
 use WebGUI::Form;
 

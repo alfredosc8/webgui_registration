@@ -4,7 +4,7 @@ use strict;
 
 use WebGUI::Registration::Admin;
 use Carp qw{ cluck croak };
-use Data::Dump 'pp';
+
 use base qw{ WebGUI::Crud };
 
 #----------------------------------------------------------------------------
