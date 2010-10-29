@@ -1015,7 +1015,9 @@ sub www_viewStepSave {
     if ( $session->scratch->get( 'overrideInstanceId' ) ) {
         return $self->www_confirmRegistrationData;
     }
-    
+
+    $session->scratch->delete( 'overrideStepId' );
+
     return $self->www_viewStep;
 }
 
