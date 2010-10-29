@@ -88,7 +88,7 @@ sub exports {
 sub getConfigurationData {
     my $self    = shift;
 
-    return $self->data;
+    return { %{ $self->data } };
 }
 
 #-------------------------------------------------------------------
