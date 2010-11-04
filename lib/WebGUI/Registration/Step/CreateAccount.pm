@@ -19,10 +19,15 @@ sub apply {
     $session->user( { userId => $user->userId } );
 
     my $data = $self->getConfigurationData;
-    $self->sendWelcomeMessage( $user->userId, $data->{ username }, $data->{ identifier } );
+
+    unless ( $data->{ welcomeMessageSent } ) {
+        $self->sendWelcomeMessage( $user->userId, $data->{ username }, $data->{ identifier } );
+    }
 
     $self->setConfigurationData( accountStatus  => 'enabled' );
     $self->setConfigurationData( identifier     => ''        );
+
+    $self->saveConfigurationData;
 
     return;
 }
@@ -368,6 +373,7 @@ sub remindPassword {
 
 }
 
+#-------------------------------------------------------------------
 sub sendWelcomeMessage {
     my $self        = shift;
     my $userId      = shift;
@@ -375,8 +381,8 @@ sub sendWelcomeMessage {
     my $password    = shift;
     my $session     = $self->session;
     my $i18n        = WebGUI::International->new( $session );
-    
-	if ( $self->get('sendWelcomeMessage')){
+
+    if ( $self->get('sendWelcomeMessage')){
         my $var = {
             welcomeMessage      => $self->get('welcomeMessage'),
             newUser_username    => $username,
@@ -395,11 +401,13 @@ sub sendWelcomeMessage {
 
         WebGUI::Inbox->new( $session )->addMessage( {
             message => $message,
-			subject	=> $i18n->get( 870 ),
-			userId	=> $userId,
+            subject => $i18n->get( 870 ),
+            userId  => $userId,
             status  => 'completed',
-		} );
-	}
+        } );
+
+        $self->setConfigurationData( welcomeMessageSent => 1 );
+    }
 
     return;
 }

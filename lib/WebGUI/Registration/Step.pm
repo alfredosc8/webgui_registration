@@ -379,6 +379,15 @@ sub view {
 }
 
 #-------------------------------------------------------------------
+sub saveConfigurationData {
+    my $self = shift;
+
+    $self->registration->instance->setStepData( $self->getId, $self->data );
+
+    return;
+}
+
+#-------------------------------------------------------------------
 sub setConfigurationData {
     my $self    = shift;
     my $key     = shift;
