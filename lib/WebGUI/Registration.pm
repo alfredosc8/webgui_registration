@@ -116,7 +116,7 @@ sub crud_definition {
         label       => 'Use asset style?',
     };
     $definition->{ properties }->{ stepTemplateId                   } = {
-        fieldType   => 'template', 
+        fieldType   => 'template',
         label       => 'Step Template',
         namespace   => 'Registration/Step',
     };
@@ -172,7 +172,7 @@ sub crud_definition {
         label               => 'Apply steps during confirmation',
         defaultValue        => 0,
         subText             => 'Only applicable when Auto-approval is yes',
-    };    
+    };
     $definition->{ properties }->{ deleteInstanceAfterApproval      } = {
         fieldType           => 'yesNo',
         label               => 'Delete instance after approval?',
@@ -203,7 +203,7 @@ sub delete {
     my $session = $self->session;
 
     # Clean up user instances
-    my $it = WebGUI::Registration::Instance->getAllIterator( $session, { 
+    my $it = WebGUI::Registration::Instance->getAllIterator( $session, {
         constraints => [ { 'registrationId=?' => $self->getId } ],
     });
     while ( my $instance = $it->() ) {
@@ -344,7 +344,7 @@ sub getStepStatus {
                substepComplete      => $step->isComplete,
                isCurrentSubstep     => $currentStep ? $currentStep->getId eq $step->getId : 0,
             };
-        }    
+        }
     }
 
     # Add confirmation step
@@ -377,7 +377,7 @@ sub getStep {
 sub getSteps {
     my $self    = shift;
     my $session = $self->session;
-   
+
     my $stepIds = WebGUI::Registration::Step->getAllIds( $session, { sequenceKeyValue => $self->getId} );
 
     my @steps   = map { $self->getStep( $_ ) } @{ $stepIds };
@@ -505,7 +505,7 @@ sub processStyle {
     my $content = shift;
     my $asset   = $self->session->asset;
 
-    my $styleTemplateId = 
+    my $styleTemplateId =
         $self->get('autoOverrideStyle') && $asset   ? $asset->get('styleTemplateId')
                                                     : $self->get('styleTemplateId')
                                                     ;
@@ -620,7 +620,7 @@ sub www_confirmRegistrationData {
     foreach my $step ( @{ $steps } ) {
         push @categoryLoop, $step->getSummaryTemplateVars;
     }
-    
+
     my $var = {
         category_loop   => \@categoryLoop,
         proceed_url     =>
@@ -636,7 +636,7 @@ sub requestApproval {
     my $self    = shift;
 
     my $userId  = $self->instance->user->userId;
-    # Send email to user 
+    # Send email to user
     my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
     my $mailBody        = $mailTemplate->process( {} );
     my $mail            = WebGUI::Mail::Send->create( $self->session, {
@@ -658,7 +658,8 @@ sub requestApproval {
             'Een account staat klaar om gecontroleerd te worden op: '
             . $self->session->url->getSiteURL . $self->session->url->gateway(
                 '',
-                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->getId
+                "registration=instance;func=edit;instanceId=" . $self->instance->getId
+#                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->getId
             )
         );
         $mail->queue;
@@ -685,7 +686,7 @@ sub www_addStep {
     return $session->privilege->insufficient unless $self->canEdit;
 
     my $namespace = $session->form->process( 'namespace' );
-    return "Illegal namespace [$namespace]" 
+    return "Illegal namespace [$namespace]"
         unless any { $namespace eq $_ } @{ $session->config->get('registrationSteps') || [] };
 
     my $step = eval {
@@ -698,7 +699,7 @@ sub www_addStep {
     return "Can't instanciate step plugin $namespace: $@" if $@;
 
     return $step->www_edit;
-    
+
 ####    adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
 }
 
@@ -744,10 +745,10 @@ sub www_completeRegistration {
     }
 
     my @returnUrls =
-        grep    { $_ } 
-        map     { $_->getReturnUrl } 
+        grep    { $_ }
+        map     { $_->getReturnUrl }
                 @{ $self->getSteps };
-    
+
 
     #### TODO: Ook nog een autoapprove template klussen en die in bovenstaande sub stoppen...
     my $var = {
@@ -795,24 +796,24 @@ sub www_manageSteps {
     my $output = 'Configured steps:<ul>';
     foreach my $step ( @{ $steps } ) {
         my $baseParams = 'registration=step;stepId=' . $step->getId;
-        
-        $output .= 
+
+        $output .=
             '<li>'
             . $icon->delete(    "$baseParams;func=delete"   )
             . $icon->moveUp(    "$baseParams;func=promote"   )
             . $icon->moveDown(  "$baseParams;func=demote" )
             . $icon->edit(      "$baseParams;func=edit"     )
             . $step->get( 'title' )
-            .'</li>';       
+            .'</li>';
     }
     $output .= '</ul>';
 
     tie my %availableSteps, 'Tie::IxHash', (
-        map { $_ => $_ } 
-        sort 
+        map { $_ => $_ }
+        sort
         @{ $session->config->get('registrationSteps') || [] }
     );
-    my $addForm         = 
+    my $addForm         =
           WebGUI::Form::formHeader( $session )
         . WebGUI::Form::hidden(     $session, { name => 'registration',    value => 'registration'        } )
         . WebGUI::Form::hidden(     $session, { name => 'func',            value => 'addStep'             } )
@@ -896,7 +897,7 @@ sub www_managePendingInstances {
 #-------------------------------------------------------------------
 sub www_manage {
     my $self = shift;
-    
+
     return $self->www_edit if $self->session->user->isAdmin;
 
     my $message = 'Use the menu on the right to manage this registration';
@@ -960,7 +961,7 @@ sub www_viewStep {
     my $scratch = $session->scratch;
 
     my $output;
- 
+
     # Remove stale ovverideInstanceId <-- happens when users complete but not finish (not approve) their registration
     if (!$scratch->get('overrideStepId') ) {
         $scratch->delete( 'overrideInstanceId' );
@@ -1022,11 +1023,11 @@ sub www_viewStepSave {
 }
 
 
-#-------------------------------------------------------------------   
+#-------------------------------------------------------------------
 sub www_view {
     my $self = shift;
 
-    return $self->www_viewStep; 
+    return $self->www_viewStep;
 }
 
 #-------------------------------------------------------------------
@@ -1034,7 +1035,7 @@ sub www_registrationComplete {
     my $self    = shift;
     my $session = $self->session;
     my $i18n    = WebGUI::International->new( $session, 'Registration' );
-    
+
     return $self->processStyle( $i18n->get('has completed') );
 }
 
