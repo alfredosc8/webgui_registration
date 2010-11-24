@@ -100,12 +100,12 @@ sub newBySessionId {
 
     my $id = $class->getAllIds( $session, {
         sequenceKeyValue    => $registrationId,
-        constraints         => [ 
+        constraints         => [
             { 'sessionId=?'     => $sessionId   },
             { 'status=?'        => 'incomplete' },
         ],
     } );
-    
+
     return $class->new( $session, $id->[0] ) if $id->[0];
 
     return;
@@ -119,12 +119,12 @@ sub newByUserId {
 
     my $id = $class->getAllIds( $session, {
         sequenceKeyValue    => $registrationId,
-        constraints         => [ 
+        constraints         => [
             { 'userId=?'        => $userId      },
             { 'status=?'        => 'incomplete' },
         ],
     } );
-    
+
     return $class->new( $session, $id->[0] ) if $id->[0];
 
     return;
@@ -183,7 +183,7 @@ sub syncUserToSession {
     my $self    = shift;
     my $session = $self->session;
 
-    if ( 
+    if (
            !$session->user->isVisitor                       # Only sync for logged in users
         && $self->hasAutoAccount                            # Only sync if the account tied to the instance is automatically generated
         && $session->user->userId ne $self->user->userId    # Make sure we don't accidentally delete the attached autoAccount
@@ -192,10 +192,10 @@ sub syncUserToSession {
         $self->user->delete;
 
         # Tie this instance to the current user. Remove the session coupling to avoid running into synchronisation
-        # problems which can cause actions to be performed on the wrong user. 
-        $self->update( { 
+        # problems which can cause actions to be performed on the wrong user.
+        $self->update( {
             userId      => $self->session->user->userId,
-            sessionId   => undef, 
+            sessionId   => undef,
         } );
     }
 
@@ -214,7 +214,7 @@ sub user {
 sub registration {
     my $self = shift;
 
-    return WebGUI::Registration->new( $self->session, $self->get('registrationId'), $self->user->userId ); 
+    return WebGUI::Registration->new( $self->session, $self->get('registrationId'), $self->user->userId );
 }
 
 #-------------------------------------------------------------------
@@ -243,7 +243,7 @@ sub www_delete {
     }
 
     # Setup Form
-    $output .= 
+    $output .=
         WebGUI::Form::formHeader( $session )
         . WebGUI::Form::hidden(   $session, { name => 'registration',   value => 'instance'         } )
         . WebGUI::Form::hidden(   $session, { name => 'instanceId',     value => $self->getId       } )
@@ -252,8 +252,8 @@ sub www_delete {
 
     # Wrap deletion steps into the form
     $output .= '<ul><li>';
-    $output .=  join    '</li><li>', 
-                map     { 
+    $output .=  join    '</li><li>',
+                map     {
                             WebGUI::Form::checkbox( $session, { name => $_, value => 1, checked => 1 } )
                             . $deleteSteps->{ $_ }
                         }
@@ -263,7 +263,7 @@ sub www_delete {
     $output .= WebGUI::Form::submit($session, {value => "Delete checked properties"});
     $output .= WebGUI::Form::formFooter($session);
 
-    $output .= '<br /><b><a href="' 
+    $output .= '<br /><b><a href="'
         . $session->url->page( 'registration=registration;func=managePendingInstances;registrationId=' . $self->registration->getId )
         . '">Cancel and return to account list</a></b><br />';
 
@@ -272,7 +272,7 @@ sub www_delete {
 
 #-------------------------------------------------------------------
 sub www_deleteConfirm {
-    my $self    = shift; 
+    my $self    = shift;
     my $session = $self->session;
     my $form    = $session->form;
 
@@ -294,21 +294,21 @@ sub www_deleteConfirm {
         });
         push @actions, 'Executiong workflow';
     }
-    
+
     # Execute onDelete handler of each step
     foreach my $step ( @{ $registration->getSteps } ) {
         if ( $form->get( 'step_'.$step->getId ) ) {
             my $message = eval{ $step->onDeleteAccount( 1 ) };
             if ($@) {
-                $message = 
-                    'An error occured while deleting step '. $step->get('title') 
+                $message =
+                    'An error occured while deleting step '. $step->get('title')
                     . ' of type ' . $step->namespace
                     . " with the following message: '$@'";
             }
             push @actions, $message;
         }
     }
-    
+
     # Remove user account
     if ( $form->get('deleteUserAccount') ) {
         if ( $self->user->isVisitor || $self->user->userId eq '3' ) {
@@ -332,14 +332,14 @@ sub www_deleteConfirm {
     # remove instance
     $self->delete;
 
-    my $base    = 'registration=registration;registrationId=' . $registration->getId; 
-    my $output  = 
+    my $base    = 'registration=registration;registrationId=' . $registration->getId;
+    my $output  =
         'Removing account:<br />'
         . '<ul><li>' . join( '</li><li>', @actions ) . '</li></ul>'
-        . '<a href="' 
+        . '<a href="'
         . $session->url->page( "$base;func=managePendingInstances" )
         . '">Return to pending account list</a><br />'
-        . '<a href="' 
+        . '<a href="'
         . $session->url->page( "$base;func=manageApprovedInstances" )
         . '">Return to approved account list</a>';
 
@@ -378,7 +378,7 @@ sub www_edit {
         value   => $self->getId,
     );
     $f->hidden(
-        name    => 'userId',    
+        name    => 'userId',
         value   => $userId,
     );
     $f->hidden(
@@ -389,7 +389,7 @@ sub www_edit {
     # User account properties
     my $username    = $session->form->process('username');
     $username     ||= $self->user->username unless $userId eq 'new';
-    my $email       = $session->form->process('email'); 
+    my $email       = $session->form->process('email');
     $email        ||= $self->user->profileField('email') unless $userId eq 'new';
     $f->fieldSetStart( 'Account Data' );
     $f->text(
@@ -402,7 +402,7 @@ sub www_edit {
         label   => 'Email',
         value   => $email,
     );
-    # Make sure we do not pass 'new' as a userId to WG::Op:Auth->getInstance as this will create a 'zombie' account. 
+    # Make sure we do not pass 'new' as a userId to WG::Op:Auth->getInstance as this will create a 'zombie' account.
     $f->raw(WebGUI::Operation::Auth::getInstance( $session, 'WebGUI', $userId eq 'new' ? undef : $userId )->editUserForm);
     $f->fieldSetEnd;
 
@@ -492,18 +492,18 @@ sub www_editSave {
     }
 
     # ========== Return to edit screen with errors if an error occurred.
-    return www_editRegistrationInstanceData( $session, \@error, $userId ) if @error;
+    return $self->www_edit( \@error ) if @error;
 
-    
+
     # ========== No errors occurred ====================================
 
-    # Apply the steps and set status to approved. 
+    # Apply the steps and set status to approved.
     $self->approve;
 
 
     # Create notification mail tmpl_vars
     my %userData = %{ $user->get };
-    my $var = { 
+    my $var = {
         map {( "user_$_"   => $userData{ $_ } )} keys %userData,
     };
     $var->{ username            } = $user->username;
@@ -538,14 +538,14 @@ sub applySteps {
 
     # Create a separate tag for the content applied by the registration steps.
     my $tempVersionTag      = WebGUI::VersionTag->create($session, {
-        name    => 
-            sprintf( 'Approval of registration %s for %s', 
+        name    =>
+            sprintf( 'Approval of registration %s for %s',
                 $self->registration->get('title'), $self->user->username,
             ),
     });
     $tempVersionTag->setWorking;
-    
-    # Apply the registration steps 
+
+    # Apply the registration steps
     foreach my $step ( @{ $registration->getSteps } ) {
         $step->apply;
     }
@@ -576,7 +576,7 @@ sub approve {
     my $user            = $self->user;
 
     $self->applySteps;
-    
+
     # Run workflow on account creation.
     if ($registration->get('newAccountWorkflowId')) {
         WebGUI::Workflow::Instance->create($session, {
@@ -586,8 +586,8 @@ sub approve {
             parameters  => $user->userId,
             priority    => 1
         });
-    } 
-    
+    }
+
     $self->update( { status => 'approved' } );
 
     return;
