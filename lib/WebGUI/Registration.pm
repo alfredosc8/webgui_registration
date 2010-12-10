@@ -19,6 +19,21 @@ private instance           => my %instance;
 use base qw{ WebGUI::Crud };
 
 #-------------------------------------------------------------------
+sub addUrlTrigger {
+    my $self    = shift;
+    my $url     = shift || croak 'No url passed';
+    my $setting = $self->session->setting;
+
+    #### TODO: Checken dat bestaande urls niet worden overschreven.
+    my $triggers         = decode_json( $setting->get('registrationUrlTriggers') || '{}' );
+    $triggers->{ $url }  = $self->getId;
+
+    $setting->set( 'registrationUrlTriggers', encode_json( $triggers ) );
+
+    return;
+}
+
+#-------------------------------------------------------------------
 sub adminConsole {
     my $self    = shift;
     my $content = shift;
@@ -46,6 +61,16 @@ sub adminConsole {
     $ac->setIcon('/extras/spacer.gif');
 
     return $ac->render( $content, $title );
+}
+
+#-------------------------------------------------------------------
+sub autoApprove {
+    my $self = shift;
+
+    $self->instance->approve;
+    $self->instance->delete if $self->get('deleteInstanceAfterApproval');
+
+    return;
 }
 
 #-------------------------------------------------------------------
@@ -301,6 +326,67 @@ sub getEditForm {
 }
 
 #-------------------------------------------------------------------
+sub getInstance {
+    my $self    = shift;
+    my $userId  = shift;
+    my $session = $self->session;
+    my $scratch = $session->scratch;
+
+    my $instance;
+    my $overrideId = $scratch->get( 'overrideInstanceId' );
+    if ( $overrideId ) {
+        $instance = WebGUI::Registration::Instance->new( $session, $overrideId );
+
+        return $instance if $instance && $instance->get('status') eq 'complete';
+    }
+
+    if ( $userId eq '1' ) {
+        $instance =
+               WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
+            || WebGUI::Registration::Instance->create( $session, { sessionId => $session->getId, registrationId => $self->getId } )
+        ;
+    }
+    else {
+        $instance =
+               WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
+            || WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
+            || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
+        ;
+    }
+
+    return $instance;
+}
+
+#-------------------------------------------------------------------
+sub getInstanceList {
+    my $self    = shift;
+    my $status  = shift;
+    my $session = $self->session;
+
+    my $it = WebGUI::Registration::Instance->getAllIterator( $session, {
+        constraints => [
+            { 'registrationId=? and status=?' => [ $self->getId, $status ] },
+        ],
+    } );
+    my $output = '<table>';
+
+    while ( my $instance = $it->() ) {
+        my $id      = $instance->getId;
+        my $user    = $instance->user;
+        my $base    = "registration=instance;instanceId=$id";
+
+        $output .= '<tr>'
+            . '<td><a href="' . $session->url->page( "$base;func=delete" )  . '">DELETE</a></td>'
+            . '<td><a href="' . $session->url->page( "$base;func=edit" )    . '">EDIT</a></td>'
+            . '<td>'          . $user->username                             . '</td>'
+            . '</tr>';
+    }
+    $output .= '</table>';
+
+    return $output;
+}
+
+#-------------------------------------------------------------------
 sub getStepStatus {
     my $self    = shift;
     my $session = $self->session;
@@ -399,47 +485,6 @@ sub hasValidUser {
     return $self->instance->get('userId') ne 1;
 }
 
-sub setInstance {
-    my $self        = shift;
-    my $instance    = shift;
-
-    $instance{ id $self } = $instance;
-
-    return;
-}
-
-#-------------------------------------------------------------------
-sub getInstance {
-    my $self    = shift;
-    my $userId  = shift;
-    my $session = $self->session;
-    my $scratch = $session->scratch;
-
-    my $instance;
-    my $overrideId = $scratch->get( 'overrideInstanceId' );
-    if ( $overrideId ) {
-        $instance = WebGUI::Registration::Instance->new( $session, $overrideId );
-
-        return $instance if $instance && $instance->get('status') eq 'complete';
-    }
-
-    if ( $userId eq '1' ) {
-        $instance =
-               WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
-            || WebGUI::Registration::Instance->create( $session, { sessionId => $session->getId, registrationId => $self->getId } )
-        ;
-    }
-    else {
-        $instance =
-               WebGUI::Registration::Instance->newByUserId( $session, $self->getId, $userId )
-            || WebGUI::Registration::Instance->newBySessionId( $session, $self->getId, $session->getId )
-            || WebGUI::Registration::Instance->create( $session, { userId => $userId, registrationId => $self->getId } );
-        ;
-    }
-
-    return $instance;
-}
-
 #-------------------------------------------------------------------
 sub instance {
     my $self = shift;
@@ -463,40 +508,6 @@ sub new {
 #    $instance{ id $self } = $self->getInstance( $userId );
 
     return $self;
-}
-
-#-------------------------------------------------------------------
-sub updateFromFormPost {
-    my $self    = shift;
-    my $session = $self->session;
-
-    # First grab current url...
-    my $currentUrl  = $self->get('url');
-
-    # ...then update the object...
-    $self->SUPER::updateFromFormPost;
-
-    # ...and finally fetch the new url
-    my $newUrl      = $self->get('url');
-
-    $self->deleteUrlTrigger( $currentUrl );
-    $self->addUrlTrigger( $newUrl );
-
-    return;
-}
-
-sub addUrlTrigger {
-    my $self    = shift;
-    my $url     = shift || croak 'No url passed';
-    my $setting = $self->session->setting;
-
-    #### TODO: Checken dat bestaande urls niet worden overschreven.
-    my $triggers         = decode_json( $setting->get('registrationUrlTriggers') || '{}' );
-    $triggers->{ $url }  = $self->getId;
-
-    $setting->set( 'registrationUrlTriggers', encode_json( $triggers ) );
-
-    return;
 }
 
 #-------------------------------------------------------------------
@@ -534,40 +545,112 @@ sub registrationStepsComplete {
 }
 
 #-------------------------------------------------------------------
-sub www_delete {
+sub requestApproval {
     my $self    = shift;
-    my $session = $self->session;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    my $userId  = $self->instance->user->userId;
+    # Send email to user
+    my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
+    my $mailBody        = $mailTemplate->process( {} );
+    my $mail            = WebGUI::Mail::Send->create( $self->session, {
+        toUser  => $userId,
+        subject => $self->get('setupCompleteMailSubject'),
+    });
+    $mail->addText($mailBody);
+    $mail->queue;
 
-    $self->delete;
+    # Send email to managers
+    if ($self->get('notificationGroupId')) {
+        my $mail            = WebGUI::Mail::Send->create( $self->session, {
+            toGroup     => $self->get('notificationGroupId'),
+            subject     => 'Een nieuwe accountaanvraag is ingediend',
+        });
 
-    return $self->www_listRegistrations;
+        #### TODO: Gehardcode tekst.
+        $mail->addText(
+            'Een account staat klaar om gecontroleerd te worden op: '
+            . $self->session->url->getSiteURL . $self->session->url->gateway(
+                '',
+                "registration=instance;func=edit;instanceId=" . $self->instance->getId
+#                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->getId
+            )
+        );
+        $mail->queue;
+    }
+
+    return;
 }
 
 #-------------------------------------------------------------------
-sub www_edit {
-    my $self    = shift;
-    my $session = $self->session;
+sub setInstance {
+    my $self        = shift;
+    my $instance    = shift;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    $instance{ id $self } = $instance;
 
-    my $f = $self->getEditForm;
-    $f->submit;
-
-    return $self->adminConsole( $f->print, 'Edit Registration' );
+    return;
 }
 
 #-------------------------------------------------------------------
-sub www_editSave {
+sub updateFromFormPost {
     my $self    = shift;
     my $session = $self->session;
 
-    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+    # First grab current url...
+    my $currentUrl  = $self->get('url');
 
-    $self->updateFromFormPost;
+    # ...then update the object...
+    $self->SUPER::updateFromFormPost;
 
-    return $self->www_listRegistrations;
+    # ...and finally fetch the new url
+    my $newUrl      = $self->get('url');
+
+    $self->deleteUrlTrigger( $currentUrl );
+    $self->addUrlTrigger( $newUrl );
+
+    return;
+}
+
+#-------------------------------------------------------------------
+sub www_addStep {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $self->canEdit;
+
+    my $namespace = $session->form->process( 'namespace' );
+    return "Illegal namespace [$namespace]"
+        unless any { $namespace eq $_ } @{ $session->config->get('registrationSteps') || [] };
+
+    my $step = eval {
+        WebGUI::Pluggable::instanciate( $namespace, 'create', [
+            $session,
+            { registrationId => $self->getId },
+        ] );
+    };
+
+    return "Can't instanciate step plugin $namespace: $@" if $@;
+
+    return $step->www_edit;
+
+####    adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_cancelRegistration {
+    my $self        = shift;
+    my $instance    = $self->instance;
+
+    if ( $instance->get('status') eq 'incomplete' ) {
+        foreach ( @{ $self->getSteps } ) {
+            $_->onCancelInstance;
+        }
+        $self->instance->delete;
+
+        $instance{ id $self } = undef;
+    }
+
+    return $self->www_view;
 }
 
 #-------------------------------------------------------------------
@@ -583,6 +666,44 @@ sub www_changeStep {
     }
 
     return $self->www_viewStep;
+}
+
+#-------------------------------------------------------------------
+sub www_completeRegistration {
+    my $self    = shift;
+    my $session = $self->session;
+    my $userId  = $self->instance->user->userId;
+
+    # If the registration process has been completed display a message stating that.
+#    return $self->www_registrationComplete if $self->registrationComplete;
+
+    # Check whether the user is allowed to register.
+    return $self->www_noValidUser unless $self->hasValidUser;
+
+    # If not all steps are completed yet, go to the step form
+    return $self->www_viewStep unless $self->registrationStepsComplete;
+
+    $self->instance->update({ status => 'pending' });
+
+    if ( $self->get('autoApprove') ) {
+        $self->autoApprove;
+    }
+    else {
+        $self->requestApproval;
+    }
+
+    my @returnUrls =
+        grep    { $_ }
+        map     { $_->getReturnUrl }
+                @{ $self->getSteps };
+
+
+    #### TODO: Ook nog een autoapprove template klussen en die in bovenstaande sub stoppen...
+    my $var = {
+        return_url  => $returnUrls[-1],
+    };
+    my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
+    return $self->processStyle( $template->process($var) )
 }
 
 #-------------------------------------------------------------------
@@ -631,133 +752,6 @@ sub www_confirmRegistrationData {
     return $self->processStyle( $template->process( $var ) );
 }
 
-
-sub requestApproval {
-    my $self    = shift;
-
-    my $userId  = $self->instance->user->userId;
-    # Send email to user
-    my $mailTemplate    = WebGUI::Asset::Template->new($self->session, $self->get('setupCompleteMailTemplateId'));
-    my $mailBody        = $mailTemplate->process( {} );
-    my $mail            = WebGUI::Mail::Send->create( $self->session, {
-        toUser  => $userId,
-        subject => $self->get('setupCompleteMailSubject'),
-    });
-    $mail->addText($mailBody);
-    $mail->queue;
-
-    # Send email to managers
-    if ($self->get('notificationGroupId')) {
-        my $mail            = WebGUI::Mail::Send->create( $self->session, {
-            toGroup     => $self->get('notificationGroupId'),
-            subject     => 'Een nieuwe accountaanvraag is ingediend',
-        });
-
-        #### TODO: Gehardcode tekst.
-        $mail->addText(
-            'Een account staat klaar om gecontroleerd te worden op: '
-            . $self->session->url->getSiteURL . $self->session->url->gateway(
-                '',
-                "registration=instance;func=edit;instanceId=" . $self->instance->getId
-#                "registration=admin;func=editRegistrationInstanceData;userId=$userId;registrationId=".$self->getId
-            )
-        );
-        $mail->queue;
-    }
-
-    return;
-}
-
-#-------------------------------------------------------------------
-sub autoApprove {
-    my $self = shift;
-
-    $self->instance->approve;
-    $self->instance->delete if $self->get('deleteInstanceAfterApproval');
-
-    return;
-}
-
-#-------------------------------------------------------------------
-sub www_addStep {
-    my $self    = shift;
-    my $session = $self->session;
-
-    return $session->privilege->insufficient unless $self->canEdit;
-
-    my $namespace = $session->form->process( 'namespace' );
-    return "Illegal namespace [$namespace]"
-        unless any { $namespace eq $_ } @{ $session->config->get('registrationSteps') || [] };
-
-    my $step = eval {
-        WebGUI::Pluggable::instanciate( $namespace, 'create', [
-            $session,
-            { registrationId => $self->getId },
-        ] );
-    };
-
-    return "Can't instanciate step plugin $namespace: $@" if $@;
-
-    return $step->www_edit;
-
-####    adminConsole( $session, $step->www_edit, 'New step for '.$registration->get('title') );
-}
-
-#-------------------------------------------------------------------
-sub www_cancelRegistration {
-    my $self        = shift;
-    my $instance    = $self->instance;
-
-    if ( $instance->get('status') eq 'incomplete' ) {
-        foreach ( @{ $self->getSteps } ) {
-            $_->onCancelInstance;
-        }
-        $self->instance->delete;
-
-        $instance{ id $self } = undef;
-    }
-
-    return $self->www_view;
-}
-
-#-------------------------------------------------------------------
-sub www_completeRegistration {
-    my $self    = shift;
-    my $session = $self->session;
-    my $userId  = $self->instance->user->userId;
-
-    # If the registration process has been completed display a message stating that.
-#    return $self->www_registrationComplete if $self->registrationComplete;
-
-    # Check whether the user is allowed to register.
-    return $self->www_noValidUser unless $self->hasValidUser;
-
-    # If not all steps are completed yet, go to the step form
-    return $self->www_viewStep unless $self->registrationStepsComplete;
-
-    $self->instance->update({ status => 'pending' });
-
-    if ( $self->get('autoApprove') ) {
-        $self->autoApprove;
-    }
-    else {
-        $self->requestApproval;
-    }
-
-    my @returnUrls =
-        grep    { $_ }
-        map     { $_->getReturnUrl }
-                @{ $self->getSteps };
-
-
-    #### TODO: Ook nog een autoapprove template klussen en die in bovenstaande sub stoppen...
-    my $var = {
-        return_url  => $returnUrls[-1],
-    };
-    my $template    = WebGUI::Asset::Template->new( $session, $self->get('registrationCompleteTemplateId') );
-    return $self->processStyle( $template->process($var) )
-}
-
 #-------------------------------------------------------------------
 sub www_createAccount {
     my $self    = shift;
@@ -772,10 +766,95 @@ sub www_createAccount {
 }
 
 #-------------------------------------------------------------------
+sub www_delete {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    $self->delete;
+
+    return $self->www_listRegistrations;
+}
+
+#-------------------------------------------------------------------
+sub www_edit {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    my $f = $self->getEditForm;
+    $f->submit;
+
+    return $self->adminConsole( $f->print, 'Edit Registration' );
+}
+
+#-------------------------------------------------------------------
+sub www_editSave {
+    my $self    = shift;
+    my $session = $self->session;
+
+    return $session->privilege->insufficient unless $session->user->isInGroup( 3 );
+
+    $self->updateFromFormPost;
+
+    return $self->www_listRegistrations;
+}
+
+#-------------------------------------------------------------------
 sub www_listRegistrations {
     my $self = shift;
 
     return WebGUI::Registration::Admin::www_view( $self->session );
+}
+
+#-------------------------------------------------------------------
+sub www_login {
+    my $self    = shift;
+    my $session = $self->session;
+
+#### TODO: De redirect hoeft denk ik niet meer
+    $session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
+
+    # Cannot use WG::Op::www_auth b/c the user style is hardcoded...
+    return $self->processStyle( WebGUI::Auth::WebGUI->new($session)->init );
+    return WebGUI::Operation::Auth::www_auth($session, 'init');
+}
+
+#-------------------------------------------------------------------
+sub www_manage {
+    my $self = shift;
+
+    return $self->www_edit if $self->session->user->isAdmin;
+
+    my $message = 'Use the menu on the right to manage this registration';
+
+    return $self->adminConsole( $message, 'Manage ' . $self->get('title') );
+}
+
+#-------------------------------------------------------------------
+sub www_manageApprovedInstances {
+    my $self    = shift;
+    my $priv    = $self->session->privilege;
+
+    return $priv->insufficient unless $self->canManage;
+
+    my $output = $self->getInstanceList( 'approved' );
+
+    return $self->adminConsole( $output, 'Approved accounts' );
+}
+
+#-------------------------------------------------------------------
+sub www_managePendingInstances {
+    my $self    = shift;
+    my $priv    = $self->session->privilege;
+
+    return $priv->insufficient unless $self->canManage;
+
+    my $output = $self->getInstanceList( 'pending' );
+
+    return $self->adminConsole( $output, 'Pending accounts' );
 }
 
 #-------------------------------------------------------------------
@@ -829,83 +908,6 @@ sub www_manageSteps {
 }
 
 #-------------------------------------------------------------------
-sub www_login {
-    my $self    = shift;
-    my $session = $self->session;
-
-#### TODO: De redirect hoeft denk ik niet meer
-    $session->scratch->set('redirectAfterLogin', $session->url->page('func=viewStep'));
-
-    # Cannot use WG::Op::www_auth b/c the user style is hardcoded...
-    return $self->processStyle( WebGUI::Auth::WebGUI->new($session)->init );
-    return WebGUI::Operation::Auth::www_auth($session, 'init');
-}
-
-#-------------------------------------------------------------------
-sub getInstanceList {
-    my $self    = shift;
-    my $status  = shift;
-    my $session = $self->session;
-
-    my $it = WebGUI::Registration::Instance->getAllIterator( $session, {
-        constraints => [
-            { 'registrationId=? and status=?' => [ $self->getId, $status ] },
-        ],
-    } );
-    my $output = '<table>';
-
-    while ( my $instance = $it->() ) {
-        my $id      = $instance->getId;
-        my $user    = $instance->user;
-        my $base    = "registration=instance;instanceId=$id";
-
-        $output .= '<tr>'
-            . '<td><a href="' . $session->url->page( "$base;func=delete" )  . '">DELETE</a></td>'
-            . '<td><a href="' . $session->url->page( "$base;func=edit" )    . '">EDIT</a></td>'
-            . '<td>'          . $user->username                             . '</td>'
-            . '</tr>';
-    }
-    $output .= '</table>';
-
-    return $output;
-}
-
-#-------------------------------------------------------------------
-sub www_manageApprovedInstances {
-    my $self    = shift;
-    my $priv    = $self->session->privilege;
-
-    return $priv->insufficient unless $self->canManage;
-
-    my $output = $self->getInstanceList( 'approved' );
-
-    return $self->adminConsole( $output, 'Approved accounts' );
-}
-
-#-------------------------------------------------------------------
-sub www_managePendingInstances {
-    my $self    = shift;
-    my $priv    = $self->session->privilege;
-
-    return $priv->insufficient unless $self->canManage;
-
-    my $output = $self->getInstanceList( 'pending' );
-
-    return $self->adminConsole( $output, 'Pending accounts' );
-}
-
-#-------------------------------------------------------------------
-sub www_manage {
-    my $self = shift;
-
-    return $self->www_edit if $self->session->user->isAdmin;
-
-    my $message = 'Use the menu on the right to manage this registration';
-
-    return $self->adminConsole( $message, 'Manage ' . $self->get('title') );
-}
-
-#-------------------------------------------------------------------
 sub www_noValidUser {
     my $self    = shift;
     my $session = $self->session;
@@ -952,6 +954,15 @@ sub www_noValidUser {
 #### TODO: ...tot hierrr
     my $template = WebGUI::Asset::Template->new($self->session, $self->get('noValidUserTemplateId'));
     return $self->processStyle( $template->process($var) );
+}
+
+#-------------------------------------------------------------------
+sub www_registrationComplete {
+    my $self    = shift;
+    my $session = $self->session;
+    my $i18n    = WebGUI::International->new( $session, 'Registration' );
+
+    return $self->processStyle( $i18n->get('has completed') );
 }
 
 #-------------------------------------------------------------------
@@ -1028,15 +1039,6 @@ sub www_view {
     my $self = shift;
 
     return $self->www_viewStep;
-}
-
-#-------------------------------------------------------------------
-sub www_registrationComplete {
-    my $self    = shift;
-    my $session = $self->session;
-    my $i18n    = WebGUI::International->new( $session, 'Registration' );
-
-    return $self->processStyle( $i18n->get('has completed') );
 }
 
 1;
