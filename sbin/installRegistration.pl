@@ -31,9 +31,19 @@ installRegistrationStepTables( $session );
 addRegistrationContentHandler( $session );
 addRegistrationProgressMacro( $session );
 addRegistrationSteps( $session );
-
+installRegistrationInvitationTables( $session );
 
 finish( $session );
+
+#----------------------------------------------------------------------------
+sub installRegistrationInvitationTables {
+    my $session = shift || die 'no session';
+    print "Installing registration invitation table...";
+
+    crudCreateOrUpdate( $session, 'WebGUI::Registration::Invitation' );
+
+    print "Done\n";
+}
 
 #----------------------------------------------------------------------------
 sub installRegistrationInstanceTables {

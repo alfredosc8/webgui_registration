@@ -13,6 +13,7 @@ use Tie::IxHash;
 use WebGUI::Registration::Admin;
 use WebGUI::Registration::Instance;
 use WebGUI::Registration::Step;
+use WebGUI::Registration::Invitation;
 
 private instance           => my %instance;
 
@@ -53,9 +54,10 @@ sub adminConsole {
     }
 
     if ( $self->canManage ) {
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=managePendingInstances"    ), 'List pending registrations' );
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=manageApprovedInstances"   ), 'List approved registrations');
-        $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
+#        $ac->addSubmenuItem( $url->page( "$baseParams;func=managePendingInstances"    ), 'List pending registrations' );
+#        $ac->addSubmenuItem( $url->page( "$baseParams;func=manageApprovedInstances"   ), 'List approved registrations');
+#        $ac->addSubmenuItem( $url->page( "$baseParams;func=editRegistrationInstanceData;userId=new"), 'Add a new account');
+        $ac->addSubmenuItem( $url->page( "$baseParams;func=sendInvitation"    ), 'Send invitation' );
     }
 
     $ac->setIcon('/extras/spacer.gif');
@@ -106,6 +108,17 @@ sub crud_definition {
     $definition->{ properties }->{ url                              } = {
         fieldType   => 'text',
         label       => 'URL',
+    };
+    $definition->{ properties }->{ requireInvitation                } = {
+        fieldType   => 'yesNo',
+        label       => 'Require invitation',
+        defaultValue=> 0,
+    };
+    $definition->{ properties }->{ invitationTemplateId             } = {
+        fieldType   => 'template',
+        label       => 'Invitation template',
+        defaultValue=> 'eLakKAmmjp2rJUG7P-PGmg',
+        namespace   => 'Registration/Invitation',
     };
     $definition->{ properties }->{ countLoginAsStep                 } = {
         fieldType   => 'yesNo',
@@ -472,6 +485,26 @@ sub getSteps {
 }
 
 #-------------------------------------------------------------------
+sub hasValidInvitation {
+    my $self = shift;
+    my $session = $self->session;
+    my ($form, $scratch) = $session->quick( qw{ form scratch } );
+
+    my $code = $form->get('_invitationCode') || $scratch->get('reg_invitationCode');
+
+    my $invitation = eval { WebGUI::Registration::Invitation->new( $session, $code ) };
+    if ($@) {
+        $session->log->warn( "errr: $@" );
+        return 0 if $@;
+    }
+
+    $scratch->set( reg_invitationCode => $code );
+    $invitation->update( { status => 'accessed' } );
+
+    return $invitation->isValid && $invitation->get('registrationId') eq $self->getId;
+}
+
+#-------------------------------------------------------------------
 sub hasValidUser {
     my $self    = shift;
 
@@ -803,6 +836,13 @@ sub www_editSave {
 }
 
 #-------------------------------------------------------------------
+sub www_invalidInvitation {
+    my $self = shift;
+
+    return $self->processStyle( "Invalid invitation code" );
+}
+
+#-------------------------------------------------------------------
 sub www_listRegistrations {
     my $self = shift;
 
@@ -973,6 +1013,10 @@ sub www_viewStep {
 
     my $output;
 
+    if ( $self->get('requireInvitation') ) {
+        return $self->www_invalidInvitation unless $self->hasValidInvitation;
+    }
+
     # Remove stale ovverideInstanceId <-- happens when users complete but not finish (not approve) their registration
     if (!$scratch->get('overrideStepId') ) {
         $scratch->delete( 'overrideInstanceId' );
@@ -1039,6 +1083,75 @@ sub www_view {
     my $self = shift;
 
     return $self->www_viewStep;
+}
+
+#-------------------------------------------------------------------
+sub www_sendInvitation {
+    my $self    = shift;
+    my $session = $self->session;
+
+    #TODO:: Privs;
+    my $f = WebGUI::HTMLForm->new( $session );
+    $f->hidden(
+        name    => 'registration',
+        value   => 'registration',
+    );
+    $f->hidden(
+        name    => 'registrationId',
+        value   => $self->getId,
+    );
+    $f->hidden(
+        name    => 'func',
+        value   => 'sendInvitationSave',
+    );
+    $f->email(
+        name    => 'email',
+        label   => 'Email address',
+    );
+    $f->text(
+        name    => 'subject',
+        label   => 'Subject',
+    );
+    $f->HTMLArea(
+        name    => 'message',
+        label   => 'Message'
+    );
+    $f->submit;
+
+    return $self->adminConsole( $f->print, 'Send invitation' );
+}
+
+#-------------------------------------------------------------------
+sub www_sendInvitationSave {
+    my $self    = shift;
+    my $session = $self->session;
+    my ($form, $url)    = $session->quick( qw{form url} );
+
+    my $email = $form->email( 'email' )
+        || return $self->www_sendInvitation( 'Email is required' );
+
+    my $invitation = WebGUI::Registration::Invitation->create( $session, {registrationId => $self->getId} );
+
+    my $code    = $invitation->getId;
+    my $var = {
+        email   => $email,
+        message => $form->process( 'message' ),
+        code    => $code,
+        url     => $url->getSiteURL . '/' . $self->get('url') . "?_invitationCode=$code",
+    };
+
+    my $template    = WebGUI::Asset->newByDynamicClass( $session, $self->get('invitationTemplateId') )
+        || return 'Fatal: cannot instanciate invitation template';
+
+    my $mail = WebGUI::Mail::Send->create( $session, {
+        to      => $email,
+        subject => $form->process( 'subject' ),
+    } );
+
+    $mail->addHtml( $template->process( $var ) );
+    $mail->send;
+
+    return $self->adminConsole( "Invitation sent!", 'Send invitation' );
 }
 
 1;
