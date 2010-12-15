@@ -13,10 +13,12 @@ our $I18N = {
     'create account' => {
         message     => 'Create account',
     },
-    'next step' => { 
+    'next step' => {
         message     => 'Next step',
     },
-
+    'invalid invitation code' => {
+        message => 'The invitation code you supplied is either unknown, already used or expired. Please try again to (un)subscribe or contact the site administrators.',
+    },
 
 };
 

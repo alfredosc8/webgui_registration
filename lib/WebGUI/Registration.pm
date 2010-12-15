@@ -845,9 +845,11 @@ sub www_editSave {
 
 #-------------------------------------------------------------------
 sub www_invalidInvitation {
-    my $self = shift;
+    my $self    = shift;
+    my $session = $self->session;
+    my $i18n    = WebGUI::International->new( $session, 'Registration' );
 
-    return $self->processStyle( "Invalid invitation code" );
+    return $self->processStyle( $i18n->get( "invalid invitation code" ) );
 }
 
 #-------------------------------------------------------------------
