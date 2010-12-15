@@ -358,7 +358,8 @@ sub getInstance {
     if ( $overrideId ) {
         $instance = WebGUI::Registration::Instance->new( $session, $overrideId );
 
-        return $instance if $instance && $instance->get('status') eq 'complete';
+        return $instance if $instance;
+#        return $instance if $instance && $instance->get('status') eq 'complete';
     }
 
     if ( $userId eq '1' ) {
