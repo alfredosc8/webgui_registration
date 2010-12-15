@@ -120,6 +120,14 @@ sub crud_definition {
         defaultValue=> 'eLakKAmmjp2rJUG7P-PGmg',
         namespace   => 'Registration/Invitation',
     };
+    $definition->{ properties }->{ defaultInviteSubject             } = {
+        fieldType   => 'text',
+        label       => 'Invitation default subject',
+    };
+    $definition->{ properties }->{ defaultInviteMessage             } = {
+        fieldType   => 'HTMLArea',
+        label       => 'Invitation default message',
+    };
     $definition->{ properties }->{ countLoginAsStep                 } = {
         fieldType   => 'yesNo',
         label       => 'Count login as step?',
@@ -1088,9 +1096,12 @@ sub www_view {
 #-------------------------------------------------------------------
 sub www_sendInvitation {
     my $self    = shift;
+    my $error   = shift;
     my $session = $self->session;
+    my $form    = $session->form;
 
-    #TODO:: Privs;
+    return $session->privilege->insufficient unless $self->canManage;
+
     my $f = WebGUI::HTMLForm->new( $session );
     $f->hidden(
         name    => 'registration',
@@ -1107,14 +1118,17 @@ sub www_sendInvitation {
     $f->email(
         name    => 'email',
         label   => 'Email address',
+        value   => $form->email( 'email' ),
     );
     $f->text(
         name    => 'subject',
         label   => 'Subject',
+        value   => $form->get( 'subject' ) || $self->get( 'defaultInviteSubject' ),
     );
     $f->HTMLArea(
         name    => 'message',
-        label   => 'Message'
+        label   => 'Message',
+        value   => $form->get( 'message' ) || $self->get( 'defaultInviteMessage' ),
     );
     $f->submit;
 
@@ -1126,6 +1140,8 @@ sub www_sendInvitationSave {
     my $self    = shift;
     my $session = $self->session;
     my ($form, $url)    = $session->quick( qw{form url} );
+
+    return $session->privilege->insufficient unless $self->canManage;
 
     my $email = $form->email( 'email' )
         || return $self->www_sendInvitation( 'Email is required' );
@@ -1151,7 +1167,7 @@ sub www_sendInvitationSave {
     $mail->addHtml( $template->process( $var ) );
     $mail->send;
 
-    return $self->adminConsole( "Invitation sent!", 'Send invitation' );
+    return $self->adminConsole( "Invitation sent to $email.", 'Send invitation' );
 }
 
 1;
