@@ -18,10 +18,10 @@ sub crud_definition {
     my $class       = shift;
     my $session     = shift;
     my $definition  = $class->SUPER::crud_definition( $session );
-    my $i18n        = WebGUI::International->new( $session, 'Registration_Step_Homepage' );
+    my $i18n        = WebGUI::International->new( $session, 'Registration' );
 
-    # Create a hash containing all profile fields of the form: ID => Category::FieldName. 
-    tie my %profileFields, 'Tie::IxHash', 
+    # Create a hash containing all profile fields of the form: ID => Category::FieldName.
+    tie my %profileFields, 'Tie::IxHash',
         ''  => '--- Do not store ---',
         map { $_->getId => $_->getCategory->getLabel . '::' . $_->getLabel }
             @{ WebGUI::ProfileField->getFields($session) };
@@ -72,9 +72,9 @@ sub getEditForm {
     my $tabform = $self->SUPER::getEditForm;
     $tabform->getTab('properties')->readOnly(
         -label  => 'Edit group',
-        -value  => 
-            WebGUI::Form::group( $session, { 
-                name    => 'editGroupId', 
+        -value  =>
+            WebGUI::Form::group( $session, {
+                name    => 'editGroupId',
                 value   => $self->get('editGroupId') || $session->form->process('editGroupId'),
             })
             . $self->getExportVariablesSelectBox( 'editGroupId_export', 'groupId' ),
@@ -105,7 +105,7 @@ sub getSummaryTemplateVars {
         field_label         => 'Your homepage',
         field_value         => $preferredHomepageUrl,
         field_formElement   => WebGUI::Form::text( $session,  {
-            name    => 'preferredHomepageUrl', 
+            name    => 'preferredHomepageUrl',
             value   => $preferredHomepageUrl,
         }),
     };
@@ -113,7 +113,7 @@ sub getSummaryTemplateVars {
     push @fields, {
         field_label         => 'Choose package',
         field_value         => $session->form->process('packageId') || '',
-        field_formElement   => WebGUI::Form::selectBox( $session, { 
+        field_formElement   => WebGUI::Form::selectBox( $session, {
             name    => 'packageId',
             value   => [ $session->form->process('packageId') ],
             options => \%packageList,
@@ -122,12 +122,12 @@ sub getSummaryTemplateVars {
 
     # Setup tmpl_var
     my $var = {
-        field_loop          => \@fields, 
+        field_loop          => \@fields,
         category_label      => $self->get('title'),
         category_edit_url   => $self->changeStepDataUrl,
     };
 
-    return ( $var );    
+    return ( $var );
 }
 
 #-------------------------------------------------------------------
@@ -135,17 +135,17 @@ sub getViewVars {
     my $self = shift;
 
     my $var = $self->SUPER::getViewVars;
-    
-    my $preferredHomepageUrl = 
-        $self->session->form->process('preferredHomepageUrl')  
+
+    my $preferredHomepageUrl =
+        $self->session->form->process('preferredHomepageUrl')
         || $self->getConfigurationData->{'preferredHomepageUrl'};
 
     push @{ $var->{ field_loop } }, (
         {
             field_label         => 'www.wieismijnarts.nl/',
-            field_formElement   => 
-                WebGUI::Form::text($self->session, { 
-                    name    => 'preferredHomepageUrl', 
+            field_formElement   =>
+                WebGUI::Form::text($self->session, {
+                    name    => 'preferredHomepageUrl',
                     value   => $preferredHomepageUrl
                 }),
 #           field_subtext   => 'Hier komt de subtext voor dit veld'
@@ -162,7 +162,6 @@ sub installUserPage {
 
     my $user        = $self->registration->instance->user;
     my $session     = $self->session;
-    my $i18n        = WebGUI::International->new($session, 'MijnArts');
 
     my $userGroup;
 
@@ -174,7 +173,7 @@ sub installUserPage {
     my $userPageRoot = WebGUI::Asset->newByDynamicClass( $session, $self->get('userPageContainer') );
 
     #### TODO: Complain if $userPageRoot does not exist.
-   
+
     my $packageMasterAsset  = WebGUI::Asset->newByDynamicClass( $session, $parameters->{packageId} );
     my $masterLineage       = $packageMasterAsset->get("lineage");
 
@@ -198,16 +197,16 @@ sub installUserPage {
         ));
 
         # Figure out the root url of the deployed package.
-        my $deployedPackageRootUrl = 
+        my $deployedPackageRootUrl =
                $self->getConfigurationData->{ preferredHomepageUrl }
             || $user->profileField('firstName') . $user->profileField('middleName') . $user->profileField('lastName');
-            
+
         # Deploy package under userPageRoot
 		my $deployedTreeMaster = $packageMasterAsset->duplicateBranch;
 		$deployedTreeMaster->setParent($userPageRoot);
-		$deployedTreeMaster->update({ 
-            isPackage   => 0, 
-            url         => $deployedPackageRootUrl, 
+		$deployedTreeMaster->update({
+            isPackage   => 0,
+            url         => $deployedPackageRootUrl,
             title       => $fullName,
             menuTitle   => $fullName,
 
@@ -237,7 +236,7 @@ sub installUserPage {
         $self->setExportVariable( 'deployedPageRoot', $deployedTreeMaster->getId );
         $self->setConfigurationData( 'deployedPageRoot', $deployedTreeMaster->getId );
     }
- 
+
 
 }
 
