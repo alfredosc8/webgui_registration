@@ -12,11 +12,11 @@ our $I18N = {
     },
 
     'pw doesnt match' => {
-        message => 'Het passwoord is niet gelijk aan de controle.',
+        message => 'Het wachtwoord en de bevestiging van het wachtwoord zijn niet gelijk.',
     },
 
     'captcha wrong' => {
-        message => 'De captcha die u heeft ingevoerd is niet gelijk aan het plaatje.',
+        message => 'Op het plaatje ziet u zes tekens. Neem ze over in dit vakje, ter voorkoming van spam.',
     },
 
     'account exists' => {
