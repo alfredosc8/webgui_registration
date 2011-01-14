@@ -13,7 +13,8 @@ sub apply {
     my $session = $self->session;
     my $user    = $self->registration->instance->user;
 
-#    return unless $session->user->isVisitor;
+    # Don't enable accounts that are alreday enabled.
+    return if $user->isRegistered && $user->isEnabled;
 
     $user->enable;
     $session->user( { userId => $user->userId } );
@@ -82,7 +83,7 @@ sub crud_definition {
 #    my $session = $self->session;
 #    my $tabform = $self->SUPER::getEditForm();
 #
-#    return $tabform; 
+#    return $tabform;
 #}
 
 ##-------------------------------------------------------------------
@@ -98,7 +99,7 @@ sub crud_definition {
 #-------------------------------------------------------------------
 sub isComplete {
     my $self = shift;
-    
+
     return 1 unless $self->session->user->isVisitor;
 
     return $self->getConfigurationData->{ status } eq 'complete';
@@ -113,7 +114,7 @@ sub isComplete {
 #
 #    $self->update({
 #        profileSteps        => $profileSteps,
-#        profileOverrides    => $profileOverrides, 
+#        profileOverrides    => $profileOverrides,
 #    });
 #}
 
@@ -142,16 +143,16 @@ sub processStepFormData {
     my $form    = $session->form;
     my $i18n    = WebGUI::International->new( $session, 'Step_CreateAccount' );
 
-    my @required = 
-        qw{ username email identifier identifierConfirm captcha }, 
-        map     { $_->getId } 
+    my @required =
+        qw{ username email identifier identifierConfirm captcha },
+        map     { $_->getId }
         grep    { $_->isRequired }
                 @{ WebGUI::ProfileField->getRegistrationFields( $session ) }
     ;
     foreach ( @required ) {
         $self->pushError( "$_ " . $i18n->get('is required') ) unless $form->get( $_ );
     }
-    
+
     my $requestedUser   = WebGUI::User->newByUsername( $session, $form->get('username') );
     my $emailUser       = WebGUI::User->newByEmail( $session, $form->get('email') );
 
@@ -197,8 +198,8 @@ sub processStepFormData {
     unless ( @{$self->error} ) {
         my $user = $self->registration->instance->user;
 
-        $user->update( { 
-            map {( 
+        $user->update( {
+            map {(
                     $_->getId => $_->formField( {}, 2, $user )
                 )}
                 @{ WebGUI::ProfileField->getRegistrationFields( $session ) }
@@ -210,8 +211,8 @@ sub processStepFormData {
             $user->disable;
 
             my $auth = WebGUI::Auth::WebGUI->new( $session );
-            $auth->saveParams( $user->userId, $auth->authMethod, { 
-                identifier => $auth->hashPassword( $form->get('identifier') ) 
+            $auth->saveParams( $user->userId, $auth->authMethod, {
+                identifier => $auth->hashPassword( $form->get('identifier') )
             } );
 
             $self->setConfigurationData( status         => 'created_temp_account'   );
@@ -310,10 +311,10 @@ sub sendConfirmationMail {
     $session->log->fatal( 'cannot instanciate confirmation email body template' ) unless $body;
 
     my $var = {
-        confirmEmail_url => 
-            $url->getSiteURL 
-            . '/' 
-            . $url->getRequestedUrl 
+        confirmEmail_url =>
+            $url->getSiteURL
+            . '/'
+            . $url->getRequestedUrl
             . "?registration=step;stepId=".$self->getId.";func=confirmEmail;confirmation=$confirm",
     };
 
@@ -346,7 +347,7 @@ sub www_confirmEmail {
 
     $instance->update( { sessionId => $self->session->getId } );
     my $data = $instance->getStepData( $self->getId );
-    
+
     ####TODO: Check if status is wait_for_confirm?
     return "Invalid code"       unless $code eq $data->{ code };
 
@@ -364,12 +365,12 @@ sub remindPassword {
     my $url = $self->registration->get('url');
     $self->session->scratch->set( 'redirectAfterLogin', $url );
 
-    my $string = $i18n->get( 'account exists' ); 
+    my $string = $i18n->get( 'account exists' );
 
     my $output = sprintf $string, "/$url?op=auth;method=recoverPassword";
 
     return $output;
-    return $self->processStyle( $output ); 
+    return $self->processStyle( $output );
 
 }
 
@@ -394,7 +395,7 @@ sub sendWelcomeMessage {
             $session->log->error( 'Cannot instanciate welcome message template for create account step' );
             return;
         }
-        
+
         my $message = $template->process($var);
 
         WebGUI::Macro::process($self->session,\$message);
