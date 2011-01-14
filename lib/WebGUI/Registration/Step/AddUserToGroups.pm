@@ -12,9 +12,7 @@ sub apply {
     my $session = $self->session;
     my $user    = $self->registration->instance->user;
 
-    my @groupIds = split /\n/, $self->get('addUserToGroups');
-
-    $user->addToGroups( \@groupIds );
+    $user->addToGroups( $self->get('addUserToGroups') );
 }
 
 #-------------------------------------------------------------------
