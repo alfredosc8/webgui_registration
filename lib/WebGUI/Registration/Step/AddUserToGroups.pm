@@ -12,7 +12,10 @@ sub apply {
     my $session = $self->session;
     my $user    = $self->registration->instance->user;
 
-    $user->addToGroups( $self->get('addUserToGroups') );
+    my $groups = $self->get('addUserToGroups');
+    $groups = [ $groups ] unless ref $groups eq 'ARRAY';
+
+    $user->addToGroups( $groups );
 }
 
 #-------------------------------------------------------------------
