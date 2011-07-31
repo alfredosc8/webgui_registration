@@ -21,7 +21,7 @@ sub apply {
 
     # Make user group admin
     $userGroup->userIsAdmin($user->userId, 1) if ($self->get('userIsGroupAdmin'));
-    
+
     # Add other groups to group
     my $additionalGroups = [ split( /\n/, $self->get('additionalGroups') ) ];
     $userGroup->addGroups( $additionalGroups );
@@ -49,19 +49,19 @@ sub crud_definition {
     $definition->{ dynamic }->{ addUserToGroup      } = {
         fieldType           => 'yesNo',
         tab                 => 'properties',
-        label               => $i18n->echo('Add user to user group'),
+        label               => $i18n->get('Add user to user group'),
         defaultValue        => 1,
     };
     $definition->{ dynamic }->{ userIsGroupAdmin    } = {
         fieldType           => 'yesNo',
         tab                 => 'properties',
-        label               => $i18n->echo('Make user group admin'),
+        label               => $i18n->get('Make user group admin'),
         defaultValue        => 0,
     };
     $definition->{ dynamic }->{ additionalGroups    } = {
         fieldType           => 'group',
         tab                 => 'properties',
-        label               => $i18n->echo('Add additional groups to user group'),
+        label               => $i18n->get('Add additional groups to user group'),
         multiple            => 1,
         size                => 5,
     };
@@ -118,15 +118,15 @@ sub onDeleteAccount {
             push @deleteGroups, $group;
         }
     }
-    
+
     # Construct removal message
     my $message = 'Groups: '. join(', ', map {$_->name} @deleteGroups);
 
     # Remove groups if doit
     if ($doit) {
         $_->delete for (@deleteGroups);
-    }    
-    
+    }
+
     # Clear group cache
     $session->stow->delete('isInGroup');
     $session->stow->delete('gotGroupsForUser');
@@ -135,7 +135,7 @@ sub onDeleteAccount {
     $self->SUPER::onDeleteAccount( $doit );
 
     # Return notification string.
-    return $message; 
+    return $message;
 }
 
 1;
