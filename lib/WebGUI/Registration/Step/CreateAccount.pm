@@ -143,18 +143,18 @@ sub processStepFormData {
     my $form    = $session->form;
     my $i18n    = WebGUI::International->new( $session, 'Step_CreateAccount' );
 
-    my @required =
+    my @required = (
         qw{ username email identifier identifierConfirm captcha },
-        map     { $_->getId }
-        grep    { $_->isRequired }
+        map     { $_->getId         }
+        grep    { $_->isRequired    }
                 @{ WebGUI::ProfileField->getRegistrationFields( $session ) }
-    ;
+    ) ;
     foreach ( @required ) {
         $self->pushError( "$_ " . $i18n->get('is required') ) unless $form->get( $_ );
     }
 
     my $requestedUser   = WebGUI::User->newByUsername( $session, $form->get('username') );
-    my $emailUser       = WebGUI::User->newByEmail( $session, $form->get('email') );
+    my $emailUser       = WebGUI::User->newByEmail( $session, $form->email('email') );
 
     my $sendValidationMail = $self->get('requireEmailValidation');
     if    ( !$emailUser && !$requestedUser ) {
@@ -188,6 +188,9 @@ sub processStepFormData {
         # Onvoorzien!!!
     }
 
+    if ( $form->get('email') && !$form->email('email') ) {
+        $self->pushError( $i18n->get('invalid email address') );
+    };
     if ( $form->get('identifier') ne $form->get('identifierConfirm') ) {
         $self->pushError( $i18n->get('pw doesnt match') );
     };
@@ -207,7 +210,7 @@ sub processStepFormData {
 
         if ( !$user->isEnabled ) {
             $user->username( $form->get('username') );
-            $user->update( { email => $form->get('email') } );
+            $user->update( { email => $form->email('email') } );
             $user->disable;
 
             my $auth = WebGUI::Auth::WebGUI->new( $session );

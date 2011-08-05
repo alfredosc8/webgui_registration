@@ -6,7 +6,7 @@ our $I18N = {
     'is required' => {
         message => 'is verplicht.',
     },
-   
+
     'username taken' => {
         message => 'De gebruikersnaam is al in gebruik door een andere gebruiker.',
     },
@@ -22,6 +22,11 @@ our $I18N = {
     'account exists' => {
         message => 'Er bestaat al een account met deze gebruikersnaam en/of emailadres. Klik <a href="%s">hier</a> als u uw paswoord of gebruikersnaam vergeten bent.',
     },
+
+    'invalid email address' => {
+        message => 'Het emailadres dat u heeft ingevoerd is incorrect.',
+    },
+
 };
 
 1;
