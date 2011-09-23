@@ -15,7 +15,7 @@ use WebGUI::Session;
 use WebGUI::Registration;
 use WebGUI::Registration::Step;
 use WebGUI::Registration::Instance;
-use List::MoreUtils qw{ insert_after_string };
+use List::MoreUtils qw{ insert_after_string none };
 
 GetOptions(
     'configFile=s'  => \$configFile,
@@ -32,8 +32,22 @@ addRegistrationContentHandler( $session );
 addRegistrationProgressMacro( $session );
 addRegistrationSteps( $session );
 installRegistrationInvitationTables( $session );
+addCleanupWorkflowActivity( $session );
 
 finish( $session );
+
+sub addCleanupWorkflowActivity {
+    my $session = shift;
+    my $config  = $session->config;
+
+    print "Adding auto account cleanup workflow activity to config...";
+
+    if ( none { $_ eq 'WebGUI::Workflow::Activity::CleanupStaleAutoAccounts' } @{ $config->get('workflowActivities/None' ) } ) {
+        $config->addToArray( 'workflowActivities/None', 'WebGUI::Workflow::Activity::CleanupStaleAutoAccounts' );
+    }
+
+    print "Done\n";
+}
 
 #----------------------------------------------------------------------------
 sub installRegistrationInvitationTables {
